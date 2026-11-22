@@ -1,0 +1,31 @@
+Far Future Weaponry
+
+Code (src/, tests/, tools/; the plugin FarFutureWeaponry.dll): MIT License
+
+Copyright (c) 2026 Far Future Weaponry contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Configs and assets (configs/, assets/; everything in the mod folder except the plugin): CC BY-SA 4.0
+https://creativecommons.org/licenses/by-sa/4.0/
+
+The placeholder models, textures and sounds are borrowed (some textures retinted) from:
+- BDArmory 1.13.1 (BahamutoD, Papa_Joe and the BDArmory Continued team), CC BY-SA 2.0, used under CC BY-SA 4.0
+  as that licence's later-version clause allows: the airborne laser turret, the ammo box, explosion models, textures,
+  sounds.
+- BDArmory Extended 1.5.3 (SuicidalInsanity, DocNappers), CC BY-SA 4.0: the QF 6-pounder, the medium combat laser,
+  the railgun.
+- North Kerbin Dynamics Renewed 0.1.1 (Harpwner and contributors), CC BY-SA 4.0: the prototype railgun turret.
+Their licence files are in Licences/. The part configs follow BDArmory's config format and reuse values from those
+mods' parts.

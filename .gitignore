@@ -1,0 +1,10 @@
+# Build output (plugin, packaged mod)
+/build/
+**/obj/
+**/bin/
+# Release zips
+/release/
+# Python caches
+__pycache__/
+# Local machine paths
+/config.local.json
