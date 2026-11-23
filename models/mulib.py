@@ -28,6 +28,10 @@ def args():
 def reset():
     """The io_object_mu add-on on, and an empty scene (no default cube, light or camera)."""
     addon_utils.enable('io_object_mu', default_set=True)
+    if not hasattr(bpy.types.Material, 'mumatprop'):
+        sys.exit('The io_object_mu add-on is not installed in this Blender. Put it in Blender\'s add-ons folder '
+                 '(Linux: ~/.config/blender/4.5/scripts/addons; Windows: %APPDATA%\\Blender Foundation\\Blender\\4.5\\scripts\\addons) '
+                 'from https://github.com/taniwha/io_object_mu and try again.')
     for ob in list(bpy.data.objects):
         bpy.data.objects.remove(ob)
     for coll in (bpy.data.meshes, bpy.data.materials, bpy.data.cameras, bpy.data.lights):
