@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.6.0
+# Far Future Weaponry 0.7.0
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -27,7 +27,7 @@ All of them are in the Utility category and in BDArmory's own part filter.
 | **Point-Defense Laser Array** | Shoots down incoming missiles and bombs within 2.5 km with rapid magenta heat pulses. It also engages craft when nothing is incoming. 160 EC/s while firing. |
 | **Antimatter Containment Trap** | Holds 0.2 units of antimatter (about 570 rifle rounds). |
 
-| **Tachyon Gun** | Rapid thin green pulses. Each hit takes 1 m/s off the target's speed, does a little damage and rusts the part it hits, with a burst of green sparkles. Rust spreads in patches and is saved with the craft. Parts it destroys break apart rather than explode (unless they hold something like antimatter). No effect on craft with an active Tachyon-be-gone. |
+| **Tachyon Gun** | Rapid thin green pulses. Each hit slows time on the target by 10% for 2 seconds, rusts the whole craft a little and damages the part it hits, with a burst of green sparkles. Rust spreads in patches and is saved with the craft. Parts it destroys break apart rather than explode (unless they hold something like antimatter). No effect on craft with an active Tachyon-be-gone. |
 | **Gravitolium Repulsor Beam** | A dark violet beam of bent space that pushes (or pulls: switch it in the part's window) whatever it holds, hard. Barely any damage. |
 
 ### Missiles
@@ -37,10 +37,10 @@ FFW's own trackers go for your KSP target (right-click a craft, Set as Target), 
 | Missile | Tracking | What it does |
 |---|---|---|
 | **Long Range Nuclear Cruise Missile** | GPS | Flies low to a GPS target up to 100 km away on a nuclear ramjet (works only in air), then 1 megaton. |
-| **Quantum Phase-Shift Missile** | Optical (20 km; fooled by cloaks) | 400 m out it vanishes in a flash of bent, colour-torn space, reappears inside the target's hull and goes off there. |
-| **Kessler Swarm Pod** | Radar (lock the target first) | 1.5 km out it splits into 20 tungsten darts that shred solar panels, radiators, wings and engines. |
+| **Quantum Phase-Shift Missile** | Optical (20 km; fooled by cloaks) | 400 m out it vanishes in a flash of bent, colour-torn space; 1.5 s later it reappears inside the target's hull and goes off there. |
+| **Kessler Swarm Pod** | Radar (lock the target first) | 500 m out it splits into 20 tungsten darts that shred solar panels, radiators, wings and engines. |
 | **Telemetry Leech Missile** | CommNet (craft with a CommNet link) | An explosion, then 30 s without antennas and 2000 ElectricCharge drained. |
-| **Chronos Rust-Dart** | Optical | Little damage; the part it hits rusts and its craft slows. |
+| **Chronos Rust-Dart** | Optical | Little damage; time on the craft it hits runs at half speed for 10 s while rust creeps over the whole craft, then speeds back up. |
 | **Kraken Missile** | Consciousness (crewed craft within 5 km) | Next to no blast; every Kerbal aboard the craft it hits dies, as a thin red wave crawls over its hull. |
 
 ### Bombs

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.0
+
+- **Chronos Rust-Dart**:
+  - Time on the craft it hits now runs at half speed for 10 s, like the Tachyon Bomb but slowed instead of stopped:
+    its motion, sounds, plumes and animations. Then it speeds back up.
+  - Rust creeps over the whole craft meanwhile, more of it than before.
+  - A little less damage.
+- **Tachyon Gun**:
+  - Each hit slows time on the target by 10% for 2 s instead of taking 1 m/s. Hits while it's slowed extend that,
+    and it eases back afterwards.
+  - Each hit rusts the whole craft a little. Damage still goes only to the part hit.
+- **Rust**: more opaque, with crisper patch edges.
+- **Quantum Phase-Shift Missile**: stays gone for 1.5 s between vanishing and reappearing inside its target.
+- **Kraken Missile**: even less blast (0.1 kg).
+- **Kessler Swarm Pod**: splits 500 m from its target instead of 1.5 km.
+- While a craft is slowed, it keeps the course it had when hit (like a craft frozen by the Tachyon Bomb).
+
 ## 0.6.0
 
 Needs VFX Reconfigured 0.11.0 or newer. The mod now has its own shaders, built with Unity on Windows like VFX

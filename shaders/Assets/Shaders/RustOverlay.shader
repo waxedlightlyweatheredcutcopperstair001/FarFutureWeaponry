@@ -43,7 +43,7 @@ Shader "FarFutureWeaponry/RustOverlay"
                 // Coverage: the noisiest spots first, then spreading. (The noise mostly lies between 0.2 and 0.8: the threshold
                 // runs over that range, so the share covered roughly follows the level: a few spots at 0.05, half at 0.5.)
                 float t=lerp(0.8,0.18,_Rust);
-                float m=smoothstep(t-0.05,t+0.05,big*0.85+fine*0.15);
+                float m=smoothstep(t-0.035,t+0.035,big*0.85+fine*0.15);
                 if(m<0.01) discard;
                 float tone=FfwFbm(i.p*2.7+5.3);
                 float3 albedo=lerp(float3(0.22,0.1,0.04),float3(0.6,0.3,0.1),tone);
@@ -51,7 +51,7 @@ Shader "FarFutureWeaponry/RustOverlay"
                 float3 n=normalize(i.n);
                 float ndl=saturate(dot(n,normalize(_WorldSpaceLightPos0.xyz)));
                 float3 lit=albedo*(ShadeSH9(float4(n,1))+_LightColor0.rgb*ndl);
-                return float4(lit,0.95*m);
+                return float4(lit,m);
             }
             ENDCG
         }

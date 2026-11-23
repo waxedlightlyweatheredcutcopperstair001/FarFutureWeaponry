@@ -5,19 +5,23 @@ namespace FarFutureWeaponry
 {
     /// <summary>
     /// The Quantum Phase-Shift Missile: <see cref="teleportRange"/> from its target (ModuleFFWSeeker's) it goes out of
-    /// phase and vanishes, reappears inside the target's hull (its colliders ignore the target's, so it doesn't crash on
-    /// the way in) and detonates there on the next physics step. Each end gets a flash of bent space with the colours
-    /// torn apart (the phase lens).
+    /// phase and vanishes (hidden, its collisions off, held where it was), stays gone for <see cref="phaseDelay"/> seconds,
+    /// then reappears inside the target's hull and detonates there on the next physics step. Each end gets a flash of
+    /// bent space with the colours torn apart (the phase lens).
     /// </summary>
     public class ModuleFFWPhase : PartModule
     {
         [KSPField] public float teleportRange = 400;   // m from the target where it phases out
+        [KSPField] public float phaseDelay = 1.5f;     // s out of phase
         [KSPField] public string flashColor = "90, 230, 255, 255";
 
         PartModule missile;
         ModuleFFWSeeker seeker;
-        bool jumped, detonated;
+        enum Phase { Closing, Gone, Back, Done }
+        Phase phase;
+        float goneAt;
         Vessel target;
+        Color colour;
 
         public override void OnStart(StartState state)
         {
@@ -26,39 +30,64 @@ namespace FarFutureWeaponry
             Vfxr.Init();
             missile = Bda.FindMissile(part);
             seeker = part.FindModuleImplementing<ModuleFFWSeeker>();
+            colour = Core.Rgba.Parse(flashColor, new Core.Rgba(0.35f, 0.9f, 1, 1)).ToColor();
         }
 
-        public override string GetInfo() => $"<b>Phase shift:</b> {teleportRange:0} m from its target it vanishes, reappears inside the hull and goes off there.";
+        public override string GetInfo() =>
+            $"<b>Phase shift:</b> {teleportRange:0} m from its target it vanishes, and {phaseDelay:0.#} s later reappears inside the hull and goes off there.";
 
         public void FixedUpdate()
         {
-            if (!HighLogic.LoadedSceneIsFlight || missile == null || seeker == null || detonated || !Bda.MissileFired(missile)) return;
-            if (jumped)
+            if (!HighLogic.LoadedSceneIsFlight || missile == null || seeker == null || phase == Phase.Done || !Bda.MissileFired(missile)) return;
+            switch (phase)
             {
-                detonated = true;
-                Log.Info($"{part.partInfo.title}: back in phase inside {(target != null ? target.vesselName : "its target")}, detonating.");
-                Bda.DetonateMissile(missile);
-                return;
+                case Phase.Closing:
+                {
+                    Vessel t = seeker.Target;
+                    if (t == null || !t.loaded || !seeker.Tracking) return;
+                    Vector3 me = part.transform.position;
+                    if ((me - t.CoM).sqrMagnitude > teleportRange * teleportRange) return;
+                    target = t;
+                    FieldManager.Instance?.PhaseFlash(me, colour);
+                    Vanish();
+                    goneAt = Time.time;
+                    phase = Phase.Gone;
+                    Log.Info($"{part.partInfo.title}: phased out {Vector3.Distance(me, t.CoM):0} m from {t.vesselName}.");
+                    return;
+                }
+                case Phase.Gone:
+                {
+                    if (Time.time - goneAt < phaseDelay) return;
+                    if (target == null || !target.loaded) { phase = Phase.Done; Bda.DetonateMissile(missile); return; }
+                    // Back in phase in the middle of the target (its collisions with the target ignored).
+                    var mine = part.GetComponentsInChildren<Collider>(true);
+                    foreach (Part p in target.parts)
+                        foreach (Collider c in p.GetComponentsInChildren<Collider>())
+                            foreach (Collider m in mine)
+                                if (c != null && m != null) Physics.IgnoreCollision(m, c, true);
+                    Vector3 inside = target.CoM;
+                    part.FindModuleImplementing<ModuleFFWTrail>()?.Restart();
+                    vessel.SetPosition(inside, false);
+                    FieldManager.Instance?.PhaseFlash(inside, colour);
+                    phase = Phase.Back;
+                    return;
+                }
+                case Phase.Back:
+                    phase = Phase.Done;
+                    Log.Info($"{part.partInfo.title}: back in phase inside {(target != null ? target.vesselName : "its target")}, detonating.");
+                    Bda.DetonateMissile(missile);
+                    return;
             }
-            Vessel t = seeker.Target;
-            if (t == null || !t.loaded || !seeker.Tracking) return;
-            Vector3 me = part.transform.position;
-            if ((me - t.CoM).sqrMagnitude > teleportRange * teleportRange) return;
-            // Out of phase: no collisions with the target, then across to its middle.
-            target = t;
-            var mine = part.GetComponentsInChildren<Collider>();
-            foreach (Part p in t.parts)
-                foreach (Collider c in p.GetComponentsInChildren<Collider>())
-                    foreach (Collider m in mine)
-                        if (c != null && m != null) Physics.IgnoreCollision(m, c, true);
-            Color colour = Core.Rgba.Parse(flashColor, new Core.Rgba(0.35f, 0.9f, 1, 1)).ToColor();
-            FieldManager.Instance?.PhaseFlash(me, colour);
-            Vector3 inside = t.CoM;
+        }
+
+        /// <summary>Out of phase: unseen, unheard, touching nothing, held still (it stays clear of BDArmory's miss logic: its target stays ahead).</summary>
+        void Vanish()
+        {
             part.FindModuleImplementing<ModuleFFWTrail>()?.Restart();
-            vessel.SetPosition(inside, false);
-            FieldManager.Instance?.PhaseFlash(inside, colour);
-            jumped = true;
-            Log.Info($"{part.partInfo.title}: phased out {Vector3.Distance(me, inside):0} m from {t.vesselName}.");
+            foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
+            foreach (Collider c in part.GetComponentsInChildren<Collider>(true)) c.enabled = false;
+            foreach (AudioSource a in part.GetComponentsInChildren<AudioSource>(true)) a.mute = true;
+            if (part.rb != null) { part.rb.velocity = Vector3.zero; part.rb.angularVelocity = Vector3.zero; part.rb.isKinematic = true; }
         }
     }
 

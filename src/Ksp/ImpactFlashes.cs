@@ -20,7 +20,7 @@ namespace FarFutureWeaponry
             public string Explosion;
             public Color Color;
             public float Size = 6, Duration = 0.5f, LightRange = 40, LightIntensity = 4;
-            public float SlowPerHit, Rust, Damage;   // tachyon hits: on the part the shot hit (TachyonHit)
+            public float SlowFactor = 1, SlowSeconds, Rust, Damage;   // tachyon hits (TachyonHit): slowing, rust over the craft, damage to the part hit
             public int Sparkles;                      // glints thrown out where it hits
             public readonly Dictionary<GameObject, float> Seen = new Dictionary<GameObject, float>();
         }
@@ -53,7 +53,8 @@ namespace FarFutureWeaponry
                 n.TryGetValue("duration", ref d.Duration);
                 n.TryGetValue("lightRange", ref d.LightRange);
                 n.TryGetValue("lightIntensity", ref d.LightIntensity);
-                n.TryGetValue("slowPerHit", ref d.SlowPerHit);
+                n.TryGetValue("slowFactor", ref d.SlowFactor);
+                n.TryGetValue("slowSeconds", ref d.SlowSeconds);
                 n.TryGetValue("rust", ref d.Rust);
                 n.TryGetValue("damage", ref d.Damage);
                 n.TryGetValue("sparkles", ref d.Sparkles);
@@ -85,7 +86,7 @@ namespace FarFutureWeaponry
                     if (now - start >= d.Duration * 0.5f) continue;
                     if (d.Size > 0) Spawn(d, pos, now);
                     if (d.Sparkles > 0) Visuals.Sparkle(pos, d.Sparkles, d.Color, 0.18f, 4);
-                    if (d.SlowPerHit > 0 || d.Rust > 0 || d.Damage > 0) TachyonHit.Apply(Bda.ExplosionHitPart(go), d.SlowPerHit, d.Rust, d.Damage);
+                    if (d.SlowFactor < 1 || d.Rust > 0 || d.Damage > 0) TachyonHit.Apply(Bda.ExplosionHitPart(go), d.SlowFactor, d.SlowSeconds, d.Rust, 0, d.Damage);
                 }
             }
             Camera cam = Visuals.Camera;

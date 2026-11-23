@@ -135,9 +135,32 @@ namespace FarFutureWeaponry.Core
         public static double Damage(double baseDamage, bool fragile, double fragileMult) => baseDamage * (fragile ? fragileMult : 1);
     }
 
-    /// <summary>Tachyon slowing: each hit takes speed away (along the way the craft is moving, never past a stop).</summary>
+    /// <summary>
+    /// Tachyon slowing (the Tachyon Gun, the Chronos Rust-Dart): time on the craft runs slower for a while (like the
+    /// Tachyon Bomb, but slowed instead of stopped): it eases down to <c>factor</c> of normal over <see cref="RampIn"/>,
+    /// holds until the end of the hold, then eases back up over <see cref="RampOut"/>.
+    /// </summary>
     public static class Slow
     {
+        public const double RampIn = 0.4, RampOut = 1.2;
+
+        /// <summary>The time speed (1 normal) at <paramref name="t"/> s after the hit, for a hold ending at <paramref name="holdEnd"/>.</summary>
+        public static double Profile(double t, double factor, double holdEnd)
+        {
+            factor = factor < 0 ? 0 : factor > 1 ? 1 : factor;
+            if (t <= 0) return 1;
+            double inFrac = Smooth(t / RampIn);
+            double down = 1 + (factor - 1) * inFrac;
+            if (t <= holdEnd) return down;
+            double outFrac = Smooth((t - holdEnd) / RampOut);
+            return down + (1 - down) * outFrac;
+        }
+
+        /// <summary>When it's back to normal.</summary>
+        public static double End(double holdEnd) => holdEnd + RampOut;
+
+        static double Smooth(double x) { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); }
+
         public static double NewSpeed(double speed, double perHit) => Math.Max(0, speed - Math.Max(0, perHit));
 
         /// <summary>The velocity factor that takes <paramref name="perHit"/> off <paramref name="speed"/> (1 when stopped).</summary>

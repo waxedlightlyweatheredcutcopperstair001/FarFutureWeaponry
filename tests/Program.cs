@@ -342,6 +342,13 @@ static class Program
         Check(minSep > 0.3, "no two darts on the same line (" + minSep.ToString("0.00") + " degrees apart at least)");
         Check(Darts.Damage(80, false, 5) == 80 && Darts.Damage(80, true, 5) == 400, "darts shred fragile parts");
 
+        Check(Slow.Profile(0, 0.5, 10) == 1 && Near(Slow.Profile(1, 0.5, 10), 0.5) && Near(Slow.Profile(9.9, 0.5, 10), 0.5), "Chronos: eases down to half speed and holds");
+        Check(Slow.Profile(10.6, 0.5, 10) > 0.5 && Slow.Profile(10.6, 0.5, 10) < 1 && Near(Slow.Profile(Slow.End(10), 0.5, 10), 1) && Slow.End(10) == 11.2, "then eases back up to normal");
+        Check(Near(Slow.Profile(0.5, 0.9, 2), 0.9) && Slow.Profile(0.2, 0.9, 2) > 0.9 && Slow.Profile(0.2, 0.9, 2) < 1, "gun: 10% slower within 0.4 s");
+        Check(Slow.Profile(0.1, 0.5, 0.05) > 0.5, "a hold shorter than the ramp never reaches the factor");
+        bool mono = true; double prev = 2;
+        for (double t = 0; t < 10; t += 0.05) { double v = Slow.Profile(t, 0.5, 10); if (v > prev + 1e-12) mono = false; prev = v; }
+        Check(mono, "slowing never speeds up before the hold ends");
         Check(Slow.NewSpeed(250, 1) == 249 && Slow.NewSpeed(0.5, 1) == 0 && Slow.NewSpeed(10, -3) == 10, "each hit takes 1 m/s, never past a stop");
         Check(Near(Slow.Factor(250, 1), 0.996) && Slow.Factor(0, 1) == 1 && Slow.Factor(0.5, 1) == 0, "velocity factor");
     }

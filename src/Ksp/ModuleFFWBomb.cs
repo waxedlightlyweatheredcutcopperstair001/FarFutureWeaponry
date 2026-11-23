@@ -39,10 +39,13 @@ namespace FarFutureWeaponry
         // Kraken: every Kerbal aboard craft within killCrewRadius dies; a wave of red light passes over the craft.
         [KSPField] public float killCrewRadius = 0;
         [KSPField] public string waveColor = "255, 30, 30, 255";
-        // Chronos Rust-Dart: the nearest part within hitRadius rusts, and its craft slows.
+        // Chronos Rust-Dart: the craft whose part is nearest, within hitRadius, slows to slowFactor of normal time for
+        // slowSeconds, rusting all over by rustAmount meanwhile; hitDamage to that part.
         [KSPField] public float hitRadius = 0;
-        [KSPField] public float slowPerHit = 0;
+        [KSPField] public float slowFactor = 1;
+        [KSPField] public float slowSeconds = 0;
         [KSPField] public float rustAmount = 0;
+        [KSPField] public float hitDamage = 0;
 
         // The tachyon field's length, set in the part's window (5 to 60 s).
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Freeze time", guiUnits = " s"),

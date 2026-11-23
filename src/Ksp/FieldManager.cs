@@ -300,7 +300,7 @@ namespace FarFutureWeaponry
                 }
             }
 
-            if (b.hitRadius > 0 && (b.slowPerHit > 0 || b.rustAmount > 0))
+            if (b.hitRadius > 0 && (b.slowFactor < 1 || b.rustAmount > 0 || b.hitDamage > 0))
                 foreach (Vessel v in near)
                 {
                     Part hit = null; float best = float.MaxValue;
@@ -310,7 +310,9 @@ namespace FarFutureWeaponry
                         float d = (p.transform.position - at).sqrMagnitude;
                         if (d < best) { best = d; hit = p; }
                     }
-                    if (hit != null && best <= b.hitRadius * b.hitRadius) TachyonHit.Apply(hit, b.slowPerHit, b.rustAmount, 0);
+                    if (hit != null && best <= b.hitRadius * b.hitRadius)
+                        TachyonHit.Apply(hit, b.slowFactor, b.slowSeconds, b.slowSeconds > 0 ? 0 : b.rustAmount,
+                                         b.slowSeconds > 0 ? b.rustAmount / b.slowSeconds : 0, b.hitDamage);
                 }
         }
 
@@ -483,6 +485,7 @@ namespace FarFutureWeaponry
 
         void FixedUpdate()
         {
+            TachyonHit.FixedTick();
             if (fields.Count == 0) return;
             float now = Time.time;
             for (int i = fields.Count - 1; i >= 0; i--)
@@ -550,6 +553,7 @@ namespace FarFutureWeaponry
             if (f.CaughtVessels.Contains(v)) return;
             Vector3 d = v.CoM - centre;
             if (!Fields.Inside(f.Spec.Radius, d.x, d.y, d.z) || ModuleFFWTachyonShield.Protects(v)) return;
+            TachyonHit.Cancel(v);   // (a tachyon-slowed craft: the field takes over)
             f.CaughtVessels.Add(v);
             var ts = new TimeStop(v, f.CaughtParts);
             if (ts.Parts == 0) return;
