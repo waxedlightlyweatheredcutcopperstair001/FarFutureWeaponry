@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+
+- Tachyon Bomb: the rising sweep plays while the bomb's pieces fly back together, ending as they snap into one,
+  instead of as soon as time starts to return.
+- Fire, smoke and flying wreckage inside the tachyon dome now stop with the rest (VFX Reconfigured 0.10.1).
+
 ## 0.4.0
 
 Needs VFX Reconfigured 0.10.0 or newer (its shaders changed: rebuild it with Unity).

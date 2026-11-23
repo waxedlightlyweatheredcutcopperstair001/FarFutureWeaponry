@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.4.0
+# Far Future Weaponry 0.4.1
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -8,7 +8,7 @@ Extended and North Kerbin Dynamics parts.
 ## Requirements
 
 - BDArmory Lite, or BDArmory (Continued)
-- VFX Reconfigured 0.10.0 or newer
+- VFX Reconfigured 0.10.1 or newer
 - Physics Range Extender
 - ModuleManager
 

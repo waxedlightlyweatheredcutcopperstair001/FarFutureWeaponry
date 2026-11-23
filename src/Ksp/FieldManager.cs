@@ -45,7 +45,8 @@ namespace FarFutureWeaponry
             ? Clip("tachyon-start", () => FieldSound.Sweep(Rate, 0.9f, 1400, 140, 3))
             : Clip(Key("rumble", s.Duration), () => FieldSound.Rumble(Rate, (float)s.Duration + 0.3f, true, 5));
 
-        static AudioClip EndSound() => Clip("tachyon-end", () => FieldSound.Sweep(Rate, 0.7f, 140, 1500, 4));
+        const float EndSweepSeconds = 0.7f;
+        static AudioClip EndSound() => Clip("tachyon-end", () => FieldSound.Sweep(Rate, EndSweepSeconds, 140, 1500, 4));
 
         /// <summary>Make a bomb's sounds ahead of time (ModuleFFWBomb.OnStart), so its detonation doesn't stall a frame.</summary>
         internal static void Prepare(FieldSpec s)
@@ -338,7 +339,9 @@ namespace FarFutureWeaponry
                         Bda.CreateExplosion(centre, (float)f.Spec.BlastTntKg, f.BlastModel, f.BlastSound, f.Source, f.Weapon);
                     }
                 }
-                if (f.Spec.Kind == FieldKind.Tachyon && !f.EndSound && t >= f.Spec.Duration)
+                // (the rising sweep as the bomb's pieces fly back together: it ends as they snap into one, at the end of
+                // the speed-up)
+                if (f.Spec.Kind == FieldKind.Tachyon && !f.EndSound && t >= f.Spec.Duration + Fields.SpeedUp - EndSweepSeconds)
                 {
                     f.EndSound = true;
                     f.Audio.PlayOneShot(EndSound());
