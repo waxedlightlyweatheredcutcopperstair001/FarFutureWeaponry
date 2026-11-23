@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.0
+
+Every weapon from the design is now in. Placeholder models as before.
+
+- **Tracking systems**:
+  - Optical: 20 km; ignores flares and chaff; fooled by cloaks.
+  - CommNet: follows craft that have a CommNet link.
+  - Consciousness: finds crewed craft within 5 km.
+  - Missiles using them go for your KSP target, or the weapon manager's target in guard mode.
+- **Missiles**: Long Range Nuclear Cruise Missile, Quantum Phase-Shift Missile, Kessler Swarm Pod, Telemetry Leech,
+  Chronos Rust-Dart, Kraken Missile. Each has its own trail:
+  - a flickering cyan trail (Phase-Shift);
+  - orange dart streaks (Kessler);
+  - a crackling cyan ion trail (Leech);
+  - a razor-thin green trail (Chronos);
+  - a long red trail (Kraken).
+- **Tachyon Gun**: each hit slows the target by 1 m/s, damages it and rusts the part. Rust is saved with the craft.
+- **Gravitolium Repulsor Beam**: pushes or pulls (switch in the part's window), with space bent along the beam.
+- Tachyon-be-gone also protects against the Tachyon Gun and the Chronos Rust-Dart.
+
 ## 0.4.1
 
 - Tachyon Bomb: the rising sweep plays while the bomb's pieces fly back together, ending as they snap into one,

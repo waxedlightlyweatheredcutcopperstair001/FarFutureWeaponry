@@ -8,9 +8,9 @@ in `package/`.
 
 | Path | What |
 |---|---|
-| `src/Core/` | Pure logic, no Unity or KSP (unit-tested): antimatter energy, containment, effect curves, trail points, colours, charge sound, field timelines and pull (`Fields`), shatter grouping, field sounds |
-| `src/Ksp/` | KSP glue: `Bda` (BDArmory by reflection), `Vfxr` (VFX Reconfigured's EffectsApi by reflection), `Startup` (dependency checks), `ImpactFlashes`, `BulletTrails`, `ModuleFFWChargeSparks`, `ModuleFFWContainment`, `ModuleFFWBomb` + `ModuleFFWTachyonShield`, `FieldManager` (bomb fields: physics, looks, sounds), `ShatterFx`, `Visuals` (procedural textures/meshes/materials) |
-| `configs/` | Shipped configs: `Parts/<Part>/part.cfg`, `Bullets.cfg`, `Resources.cfg` (fallback Antimatter definition), `Effects.cfg` (flash and trail definitions) |
+| `src/Core/` | Pure logic, no Unity or KSP (unit-tested): antimatter energy, containment, effect curves, trail points, colours, charge sound, field timelines and pull (`Fields`), shatter grouping, field sounds, tracking and lead (`Tracking`), rust, darts, slowing |
+| `src/Ksp/` | KSP glue: `Bda` (BDArmory by reflection), `Vfxr` (VFX Reconfigured's EffectsApi by reflection), `Startup` (dependency checks), `ImpactFlashes`, `BulletTrails`, `ModuleFFWChargeSparks`, `ModuleFFWContainment`, `ModuleFFWBomb` + `ModuleFFWTachyonShield`, `FieldManager` (bomb fields and warhead effects: physics, looks, sounds), `TimeStop`, `ShatterFx`, `Targets` + `ModuleFFWSeeker` (FFW tracking), `ModuleFFWPhase`, `ModuleFFWRamjet`, `Darts` (`ModuleFFWDarts`, `DartManager`), `TachyonHit` + `ModuleFFWRust`, `ModuleFFWRepulsor`, `RibbonTrail` + `ModuleFFWTrail`, `Visuals` (procedural textures/meshes/materials) |
+| `configs/` | Shipped configs: `Parts/<Part>/part.cfg`, `Bullets.cfg`, `Resources.cfg` (fallback Antimatter definition), `Effects.cfg` (flash, hit-effect and trail definitions), `Rust.cfg` (ModuleFFWRust on every part) |
 | `assets/` | Borrowed placeholder models, textures, sounds and their licences, laid out as in the mod folder. Made by `tools/import_assets.py`; committed |
 | `package/` | Player README and CHANGELOG (shipped) |
 | `tests/` | Console test program for `src/Core` |

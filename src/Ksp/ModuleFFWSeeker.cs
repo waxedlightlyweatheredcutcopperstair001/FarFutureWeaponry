@@ -62,7 +62,6 @@ namespace FarFutureWeaponry
                 // Aim where it will be: relative motion over the surface, at the missile's own speed (at least 200 m/s).
                 Vector3 rel = Target.CoM - me;
                 Vector3 tv = Target.srf_velocity, mv = vessel.srf_velocity;
-                Vector3 v = tv - mv;
                 double speed = Mathf.Max(200, mv.magnitude);
                 Core.Tracking.Lead(rel.x, rel.y, rel.z, tv.x, tv.y, tv.z, speed, leadSeconds, out double ax, out double ay, out double az);
                 Vector3 aim = me + new Vector3((float)ax, (float)ay, (float)az);
