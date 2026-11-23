@@ -66,9 +66,11 @@ Windows: `py tools\make.py --deploy`. Single steps: `python3 tools/build.py`;
   `ringThickness` of the plane, once each.
 - **Tracking sensors** (`ModuleFFWSensor`): `ModuleFFWSeeker` locks only if the firing craft has a powered sensor of
   its kind (`ModuleFFWSensor.Has`). A sensor's `pivotTransform` yaws round its parent's up axis to face the target.
-- **Cloak transition**: the cloak overlay's GrabPass sees the part behind it, so the reveal can't be per pixel. Each
-  part's renderers are switched off when the ripple reaches it, and `CloakOverlay` (`_CloakState.z`) draws only the
-  cloaked side of the ripple band.
+- **Cloak**: each part's hull renderers are switched off when the ripple reaches it, and `CloakOverlay`
+  (`_CloakState.z`) draws only the cloaked side of the ripple band. Effects (plumes, particles: `PartOverlay.IsHull`
+  false) are hidden at once and get no overlay. No GrabPass (0.10.2): with KSP's several cameras and Deferred/Scatterer
+  a named grab can be taken by the wrong camera, painting stale sky over the view. BDArmory's cloak's
+  `Part.SetOpacity` fade is undone (`SetOpacity(1)`) for 3 s after each switch.
 - **Interface glitch**: `ScreenGlitch` jolts the direct children of `UIMasterController.mainCanvas`/`appCanvas`
   (position, scale, alpha via an added `CanvasGroup`) and puts them back afterwards.
 - **Antimatter** uses Far Future Technologies' units (36 GJ/unit) and the same containment model (a flat EC/s cost;

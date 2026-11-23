@@ -63,6 +63,7 @@ namespace FarFutureWeaponry
             {
                 var src = mf != null ? mf.GetComponent<MeshRenderer>() : null;
                 if (src == null || mf.sharedMesh == null || mf.name.StartsWith("FFW ")) continue;   // (not other overlays)
+                if (!IsHull(src)) continue;                                                        // (not plumes and effects)
                 var go = new GameObject(name);
                 go.layer = mf.gameObject.layer;
                 go.transform.SetParent(mf.transform, false);
@@ -80,6 +81,23 @@ namespace FarFutureWeaponry
         }
 
         public bool Empty => renderers.Count == 0;
+
+        static readonly string[] EffectShaders = { "Waterfall", "Firefly", "Particles", "Particle", "Additive", "Unlit", "Plume", "Smoke", "FX/" };
+
+        /// <summary>
+        /// Whether a renderer is part of the hull rather than an effect: engine plumes (Waterfall's meshes, which its
+        /// shaders stretch far beyond the mesh itself), glows and particles get no overlay.
+        /// </summary>
+        public static bool IsHull(Renderer r)
+        {
+            foreach (Material m in r.sharedMaterials)
+            {
+                if (m == null || m.shader == null) continue;
+                string s = m.shader.name;
+                foreach (string e in EffectShaders) if (s.IndexOf(e, System.StringComparison.OrdinalIgnoreCase) >= 0) return false;
+            }
+            return true;
+        }
 
         /// <summary>Push the block's values to every renderer (and follow the part's own renderers being shown or hidden).</summary>
         public void Apply()

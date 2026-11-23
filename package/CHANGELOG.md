@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.2
+
+- **Cloaking Device**:
+  - No more darkened ground, blinding flash or vanishing scenery when it switches on (seen with Deferred,
+    Scatterer and other rendering mods). The cloak no longer copies the screen to bend the view behind the craft;
+    what's left is the faint blue outline and the ripple. BDArmory's own cloak is also kept from turning the part
+    materials see-through, since the craft is hidden anyway. **Needs the rebuilt shader bundle.**
+  - Engine plumes (Waterfall and stock) and other effects vanish the moment it starts cloaking and come back only once
+    it has fully uncloaked. They get no outline, so the outline no longer reaches far past where the plumes end.
+- Force field, rust, Kraken wave and holograms: plumes and other effects no longer get the overlay or a hologram copy.
+
 ## 0.10.1
 
 - **Warp Bomb** model, simpler and more in keeping with KSP:

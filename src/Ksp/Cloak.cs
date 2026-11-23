@@ -87,14 +87,19 @@ namespace FarFutureWeaponry
             bool rippling = t < rippleSeconds;
             bool overlay = active || rippling;
             Vector3 c = vessel.CoM;
+            // BDArmory's cloak fades every part's material opacity (Part.SetOpacity) as it switches; ours already hides
+            // them, and with Deferred a see-through part material darkens the scene. Keep them opaque.
+            if (bdaCloak != null && Time.time - switchedAt < 3)
+                foreach (Part p in vessel.parts) if (p != null) p.SetOpacity(1);
             // The wave sweeps out from the middle to past the far end: each part vanishes (or comes back) as it reaches it.
             float far = 2;
             foreach (Part p in vessel.parts) if (p != null) far = Mathf.Max(far, Vector3.Distance(p.transform.position, c) + 2);
             float wave = rippling ? far * Mathf.Clamp01(t / rippleSeconds) : -1;
             if (FfwShaders.Cloak == null) { if (active && !rippling) Hide(null, 0); else Show(); ClearOverlays(); return; }
-            if (active) { Hide(rippling ? (Vector3?)c : null, wave); if (Time.time >= nextRescan) nextRescan = Time.time + 0.5f; }
+            if (active) Hide(rippling ? (Vector3?)c : null, wave);
             else if (rippling) HideOutside(c, wave);
             else Show();
+            if (Time.time >= nextRescan) nextRescan = Time.time + 0.5f;
             if (!overlay) { ClearOverlays(); return; }
             if (builtFor != vessel.parts.Count) { ClearOverlays(); BuildOverlays(); }
             float sweep = rippling ? (active ? 1 : -1) : 0;
@@ -111,57 +116,64 @@ namespace FarFutureWeaponry
         static readonly HashSet<Renderer> allHidden = new HashSet<Renderer>();
         internal static bool HiddenByCloak(Renderer r) => r != null && allHidden.Contains(r);
 
-        // Each part's own renderers, hidden while it's cloaked (by part: they vanish one by one as the wave reaches them).
-        readonly Dictionary<Part, List<Renderer>> hiddenBy = new Dictionary<Part, List<Renderer>>();
+        // Each part's own renderers hidden by the cloak: its hull (vanishing part by part as the wave reaches it) and its
+        // effects (plumes, glows, particles: gone the moment it starts cloaking, back only once it has fully uncloaked).
+        readonly Dictionary<Part, List<Renderer>> hullHidden = new Dictionary<Part, List<Renderer>>();
+        readonly Dictionary<Part, List<Renderer>> fxHidden = new Dictionary<Part, List<Renderer>>();
+        float nextRescan;
 
         void Hide(Vector3? centre, float radius)
         {
+            bool rescan = Time.time >= nextRescan;
             foreach (Part p in vessel.parts)
             {
                 if (p == null) continue;
-                bool reached = centre == null || Vector3.Distance(p.transform.position, centre.Value) <= radius;
-                SetHidden(p, reached);
+                SetHidden(hullHidden, p, centre == null || Vector3.Distance(p.transform.position, centre.Value) <= radius, true, rescan);
+                SetHidden(fxHidden, p, true, false, rescan);
             }
         }
 
         void HideOutside(Vector3 centre, float radius)
         {
+            bool rescan = Time.time >= nextRescan;
             foreach (Part p in vessel.parts)
-                if (p != null) SetHidden(p, Vector3.Distance(p.transform.position, centre) > radius);
+            {
+                if (p == null) continue;
+                SetHidden(hullHidden, p, Vector3.Distance(p.transform.position, centre) > radius, true, rescan);
+                SetHidden(fxHidden, p, true, false, rescan);
+            }
         }
 
-        float nextRescan;
-
-        void SetHidden(Part p, bool hide)
+        static void SetHidden(Dictionary<Part, List<Renderer>> hidden, Part p, bool hide, bool hull, bool rescan)
         {
-            bool isHidden = hiddenBy.TryGetValue(p, out var list);
-            if (hide && isHidden && Time.time >= nextRescan)
+            bool isHidden = hidden.TryGetValue(p, out var list);
+            if (hide && (!isHidden || rescan))
             {
-                // (plumes and effects that come on while cloaked: an engine lighting up)
+                // (also catches what switches on while cloaked: an engine lighting up)
+                if (!isHidden) { list = new List<Renderer>(); hidden[p] = list; }
                 foreach (Renderer r in p.GetComponentsInChildren<Renderer>())
-                    if (r != null && r.enabled && !r.name.StartsWith("FFW ")) { r.enabled = false; list.Add(r); allHidden.Add(r); }
-                return;
+                {
+                    if (r == null || !r.enabled || r.name.StartsWith("FFW ")) continue;
+                    bool fx = !(r is MeshRenderer || r is SkinnedMeshRenderer) || !PartOverlay.IsHull(r);
+                    if (fx == hull) continue;
+                    r.enabled = false; list.Add(r); allHidden.Add(r);
+                }
             }
-            if (hide == isHidden) return;
-            if (hide)
-            {
-                list = new List<Renderer>();
-                foreach (Renderer r in p.GetComponentsInChildren<Renderer>())
-                    if (r != null && r.enabled && !r.name.StartsWith("FFW ")) { r.enabled = false; list.Add(r); allHidden.Add(r); }
-                hiddenBy[p] = list;
-            }
-            else
+            else if (!hide && isHidden)
             {
                 foreach (Renderer r in list) if (r != null) { r.enabled = true; allHidden.Remove(r); }
-                hiddenBy.Remove(p);
+                hidden.Remove(p);
             }
         }
 
         /// <summary>Every part back in view.</summary>
         void Show()
         {
-            foreach (var kv in hiddenBy) foreach (Renderer r in kv.Value) if (r != null) { r.enabled = true; allHidden.Remove(r); }
-            hiddenBy.Clear();
+            foreach (var d in new[] { hullHidden, fxHidden })
+            {
+                foreach (var kv in d) foreach (Renderer r in kv.Value) if (r != null) { r.enabled = true; allHidden.Remove(r); }
+                d.Clear();
+            }
         }
 
         void BuildOverlays()

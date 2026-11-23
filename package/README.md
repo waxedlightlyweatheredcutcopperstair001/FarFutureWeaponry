@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.10.1
+# Far Future Weaponry 0.10.2
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -63,7 +63,7 @@ Drop them like any BDArmory bomb.
 | Part | What it does |
 |---|---|
 | **Tachyon-be-gone** | While it's on, the craft is immune to tachyon weapons (Tachyon Bomb, Tachyon Gun, Chronos Rust-Dart). |
-| **Cloaking Device** | Light ripples over the craft and each part vanishes as the ripple reaches it, plumes too: a faint blue outline and a shimmer are all that's left. Fools optical, infrared and anti-radiation tracking. 10 EC/s. |
+| **Cloaking Device** | Light ripples over the craft and each part vanishes as the ripple reaches it; engine plumes vanish at once. A faint blue outline is all that's left. Fools optical, infrared and anti-radiation tracking. 10 EC/s. |
 | **Force Field Generator** | A shimmer, then a steady electric-blue outline. Blocks incoming damage, each hit flashing blue, paid for in ElectricCharge (2 EC per point of damage). Collapses when the charge runs out. Tachyon weapons and phase-shifted missiles get through. |
 | **Hologram Generator** | Press its button: six glitchy, semi-transparent copies of the craft (its own colours, tinted a little blue) fly round it for 30 s. Optical tracking likely follows one of them. They stay visible while you're cloaked. 1500 EC, 60 s recharge. |
 | **Signal Scrambler** | Craft within 5 km lose radar and CommNet for 20 s, and remotely flown ones can't be controlled. Hides you from CommNet tracking. Your screen and interface glitch. 2000 EC, 60 s recharge. |

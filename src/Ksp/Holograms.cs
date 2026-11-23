@@ -95,7 +95,7 @@ namespace FarFutureWeaponry
                     {
                         var src = mf.GetComponent<MeshRenderer>();
                         // (what a cloak has hidden counts as shown: the holograms still look like the craft)
-                        if (src == null || mf.sharedMesh == null || mf.name.StartsWith("FFW ")) continue;
+                        if (src == null || mf.sharedMesh == null || mf.name.StartsWith("FFW ") || !PartOverlay.IsHull(src)) continue;   // (no plumes)
                         if (!(src.enabled && src.gameObject.activeInHierarchy) && !ModuleFFWCloak.HiddenByCloak(src)) continue;
                         var go = new GameObject("FFW hologram piece");
                         go.transform.SetParent(holo.transform, false);
