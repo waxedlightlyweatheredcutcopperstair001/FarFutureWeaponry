@@ -1,15 +1,15 @@
 # Far Future Weaponry
 
 Experimental weapons and armour for KSP 1.12.5, built on BDArmory. One package works with **BDArmory Lite** and full
-**BDArmory**. Requires VFX Reconfigured, Physics Range Extender and ModuleManager. The player README and changelog are
+**BDArmory**. Requires VFX Reconfigured 0.8.0+, Physics Range Extender and ModuleManager. The player README and changelog are
 in `package/`.
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `src/Core/` | Pure logic, no Unity or KSP (unit-tested): antimatter energy, containment, effect curves, trail points, colours |
-| `src/Ksp/` | KSP glue: `Bda` (BDArmory by reflection), `Startup` (dependency checks), `ImpactFlashes`, `BulletTrails`, `ModuleFFWChargeSparks`, `ModuleFFWContainment`, `Visuals` (procedural textures/materials) |
+| `src/Core/` | Pure logic, no Unity or KSP (unit-tested): antimatter energy, containment, effect curves, trail points, colours, charge sound, field timelines and pull (`Fields`), shatter grouping, field sounds |
+| `src/Ksp/` | KSP glue: `Bda` (BDArmory by reflection), `Vfxr` (VFX Reconfigured's EffectsApi by reflection), `Startup` (dependency checks), `ImpactFlashes`, `BulletTrails`, `ModuleFFWChargeSparks`, `ModuleFFWContainment`, `ModuleFFWBomb` + `ModuleFFWTachyonShield`, `FieldManager` (bomb fields: physics, looks, sounds), `ShatterFx`, `Visuals` (procedural textures/meshes/materials) |
 | `configs/` | Shipped configs: `Parts/<Part>/part.cfg`, `Bullets.cfg`, `Resources.cfg` (fallback Antimatter definition), `Effects.cfg` (flash and trail definitions) |
 | `assets/` | Borrowed placeholder models, textures, sounds and their licences, laid out as in the mod folder. Made by `tools/import_assets.py`; committed |
 | `package/` | Player README and CHANGELOG (shipped) |
@@ -46,6 +46,14 @@ Windows: `py tools\make.py --deploy`. Single steps: `python3 tools/build.py`;
   fading ribbon behind the bullet types named in `FFW_BULLET_TRAIL`. Points are kept in the main body's frame, so
   floating-origin shifts don't move them.
 - **Charge sparks**: `ModuleFFWChargeSparks` follows `ModuleWeapon.isCharging`.
+- **Bombs**: plain BDArmory bombs (`MissileLauncher` + `BDExplosivePart`/`BDModuleNuke`) with `ModuleFFWBomb`. It tags
+  the part with a VFX Reconfigured look (`EffectsApi.SetPartLook`: "none" for field bombs, whose warhead is only a
+  trigger; "antimatter"; "mushroom"). It fires its field only if the warhead's `hasDetonated` is set when the part dies
+  (not when an unarmed bomb is shot apart, nor on scene changes).
+- **Fields** (`FieldManager`): the pull is a constant acceleration on every loaded part inside the radius. The black
+  hole `explode()`s parts and demolishes buildings inside its event horizon. The tachyon freeze holds every part's
+  rigidbody at rest over the surface (Krakensbane and planet rotation accounted for), then gives back the velocity it
+  had relative to the surface. Lenses and flashes go through `EffectsApi.Lens`/`Glow` each frame.
 - **Antimatter** uses Far Future Technologies' units (36 GJ/unit) and the same containment model (a flat EC/s cost;
   without it, annihilation heats the part). `Resources.cfg` defines Antimatter only when the Community Resource Pack
   doesn't.

@@ -33,6 +33,9 @@ namespace FarFutureWeaponry
                     missing.Add($"{name} ({why})");
                 }
             }
+            Vfxr.Init();
+            if (!Vfxr.Present && !missing.Exists(m => m.StartsWith("VFX Reconfigured")))
+                missing.Add("VFX Reconfigured 0.8.0 or newer (the installed one has no effects API: no lenses, flashes or weapon looks)");
             bool mm = false;
             foreach (var la in AssemblyLoader.loadedAssemblies)
                 if (la.name.StartsWith("ModuleManager")) { mm = true; break; }
@@ -45,7 +48,7 @@ namespace FarFutureWeaponry
             if (missing.Count > 0)
             {
                 PopupDialog.SpawnPopupDialog(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), "FFWMissing",
-                    "Far Future Weaponry", "Far Future Weaponry needs these mods, which aren't installed:\n\n- " +
+                    "Far Future Weaponry", "Far Future Weaponry needs these mods, which aren't installed or are too old:\n\n- " +
                     string.Join("\n- ", missing), "OK", false, HighLogic.UISkin);
             }
         }

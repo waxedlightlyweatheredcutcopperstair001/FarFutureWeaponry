@@ -84,6 +84,53 @@ namespace FarFutureWeaponry
             }
         }
 
+        static Texture2D white;
+
+        /// <summary>A plain white texture (for vertex-coloured meshes).</summary>
+        public static Texture2D White
+        {
+            get
+            {
+                if (white == null)
+                {
+                    white = new Texture2D(2, 2, TextureFormat.RGBA32, false) { hideFlags = HideFlags.HideAndDontSave };
+                    white.SetPixels32(new[] { new Color32(255, 255, 255, 255), new Color32(255, 255, 255, 255), new Color32(255, 255, 255, 255), new Color32(255, 255, 255, 255) });
+                    white.Apply(false, true);
+                }
+                return white;
+            }
+        }
+
+        /// <summary>A unit-radius UV sphere (normals = positions), for the tachyon field.</summary>
+        public static Mesh Sphere(int around = 48, int down = 24)
+        {
+            var v = new Vector3[(around + 1) * (down + 1)];
+            var uv = new Vector2[v.Length];
+            for (int j = 0; j <= down; j++)
+            {
+                float th = Mathf.PI * j / down;
+                for (int i = 0; i <= around; i++)
+                {
+                    float ph = 2 * Mathf.PI * i / around;
+                    v[j * (around + 1) + i] = new Vector3(Mathf.Sin(th) * Mathf.Cos(ph), Mathf.Cos(th), Mathf.Sin(th) * Mathf.Sin(ph));
+                    uv[j * (around + 1) + i] = new Vector2((float)i / around, (float)j / down);
+                }
+            }
+            var t = new int[around * down * 6];
+            int k = 0;
+            for (int j = 0; j < down; j++)
+                for (int i = 0; i < around; i++)
+                {
+                    int a = j * (around + 1) + i, b = a + around + 1;
+                    t[k++] = a; t[k++] = b; t[k++] = a + 1;
+                    t[k++] = a + 1; t[k++] = b; t[k++] = b + 1;
+                }
+            var m = new Mesh { vertices = v, uv = uv, triangles = t, normals = v, colors = new Color[v.Length] };
+            m.RecalculateBounds();
+            m.MarkDynamic();
+            return m;
+        }
+
         static Transform Frame => FlightGlobals.currentMainBody != null ? FlightGlobals.currentMainBody.transform : null;
 
         public static Vector3d ToFrame(Vector3 world)

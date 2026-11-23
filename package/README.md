@@ -1,14 +1,14 @@
-# Far Future Weaponry 0.1.1
+# Far Future Weaponry 0.2.0
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
-This is an early version: the first five weapons. The models are placeholders, retinted from BDArmory, BDArmory
+This is an early version: the first five weapons, five bombs and the Tachyon-be-gone. The models are placeholders, retinted from BDArmory, BDArmory
 Extended and North Kerbin Dynamics parts.
 
 ## Requirements
 
 - BDArmory Lite, or BDArmory (Continued)
-- VFX Reconfigured
+- VFX Reconfigured 0.8.0 or newer
 - Physics Range Extender
 - ModuleManager
 
@@ -26,6 +26,24 @@ All of them are in the Utility category and in BDArmory's own part filter.
 | **Gauss Cannon Turret** | The same gun on a fast 360° turret. |
 | **Point-Defense Laser Array** | Shoots down incoming missiles and bombs within 2.5 km with rapid magenta heat pulses. It also engages craft when nothing is incoming. 160 EC/s while firing. |
 | **Antimatter Containment Trap** | Holds 0.2 units of antimatter (about 570 rifle rounds). |
+
+### Bombs
+
+Drop them like any BDArmory bomb.
+
+| Bomb | What it does |
+|---|---|
+| **Gravity Bomb** | A collapsing bubble of bent space pulls everything within 300 m towards it at 6 g for 3 s. Then a white flash and a 250 kg TNT blast hit whatever it gathered. |
+| **Warp Bomb** | A black hole for 10 s. Everything within 1 km is pulled in at 20 g, and anything that gets within 250 m is destroyed. |
+| **Tachyon Bomb** | A green sphere freezes every craft within 500 m, yours included, for 10 s. Then each one gets its speed back. No damage. The bomb shatters, its pieces hang in the field, then they fly back together and the bomb drops as a harmless dud (a prop that disappears after two minutes). |
+| **Antimatter Bomb** | About 500 megatons, drawn as an antimatter blast. Anything loaded within about 40 km is destroyed. |
+| **Mushroom Bomb** | About 2 megatons, with a green flash, green flames and a dark green cloud. Danger radius about 9 km. |
+
+### Countermeasures
+
+| Part | What it does |
+|---|---|
+| **Tachyon-be-gone** | While it's on, the craft is immune to tachyon weapons: the Tachyon Bomb doesn't freeze it. |
 
 ## Antimatter
 

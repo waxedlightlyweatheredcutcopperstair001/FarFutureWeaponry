@@ -16,7 +16,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 NAME = 'FarFutureWeaponry'
 ASSET_EXT = ('.mu', '.png', '.dds', '.tga', '.ogg', '.wav', '.mbm')
-KNOWN_MODULES = {'ModuleWeapon', 'ModuleTurret', 'ModulePartVariants', 'ModuleCASE'}
+KNOWN_MODULES = {'ModuleWeapon', 'ModuleTurret', 'ModulePartVariants', 'ModuleCASE', 'MissileLauncher', 'BDExplosivePart', 'BDModuleNuke'}
+LOOKS = {'', 'none', 'antimatter', 'mushroom'}
+EFFECTS = {'none', 'gravity', 'warp', 'tachyon'}
 RESOURCES = {'ElectricCharge', 'Antimatter'}
 
 problems = []
@@ -150,6 +152,16 @@ def main():
                     for go, _ in variant.values:
                         if go not in names:
                             problem(f'{rel}: variant object {go} is not in {model.name}')
+                if mname == 'ModuleFFWBomb':
+                    if (m.get('look') or '').lower() not in LOOKS:
+                        problem(f'{rel}: ModuleFFWBomb look = {m.get("look")}: not one of {sorted(LOOKS)}')
+                    if (m.get('effect') or 'none').lower() not in EFFECTS:
+                        problem(f'{rel}: ModuleFFWBomb effect = {m.get("effect")}: not one of {sorted(EFFECTS)}')
+                    warheads = [x.get('name') for x in part.nodes if x.name == 'MODULE' and x.get('name') in ('BDExplosivePart', 'BDModuleNuke')]
+                    if not warheads:
+                        problem(f'{rel}: ModuleFFWBomb needs a BDArmory warhead (BDExplosivePart or BDModuleNuke) to tell it when it went off')
+                    if (m.get('effect') or 'none').lower() != 'none' and (m.get('look') or '').lower() != 'none':
+                        problem(f'{rel}: a field bomb\'s warhead is only its trigger: give it look = none')
                 if mname == 'ModuleWeapon':
                     for b in (x.strip() for x in (m.get('bulletType') or '').split(';') if x.strip()):
                         if b not in bullets:

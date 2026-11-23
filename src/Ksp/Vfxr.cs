@@ -1,0 +1,65 @@
+using System;
+using System.Reflection;
+using UnityEngine;
+
+namespace FarFutureWeaponry
+{
+    /// <summary>
+    /// VFX Reconfigured's EffectsApi (0.8.0 and later), bound by reflection: gravitational lenses and glows drawn over
+    /// everything, and looks for weapon parts' explosions. Missing (older VFX Reconfigured): the calls do nothing and
+    /// the plugin falls back on its own lights.
+    /// </summary>
+    internal static class Vfxr
+    {
+        static bool initialised;
+        static Func<Vector3, float, float, float, float, bool> lens;
+        static Func<Vector3, float, float, float, Color, Color, bool> glow;
+        static Action<Part, string> setLook;
+
+        public static bool Present { get; private set; }
+
+        public static void Init()
+        {
+            if (initialised) return;
+            initialised = true;
+            Assembly vfxr = null;
+            foreach (var la in AssemblyLoader.loadedAssemblies)
+                if (la.name == "VolumetricFXReconfigured") { vfxr = la.assembly; break; }
+            Type api = vfxr?.GetType("VFXReconfigured.EffectsApi");
+            if (api == null)
+            {
+                Log.Warn(vfxr == null ? "VFX Reconfigured is not installed: no lenses, flashes or weapon looks."
+                                      : "VFX Reconfigured is older than 0.8.0 (no EffectsApi): no lenses, flashes or weapon looks. Update it.");
+                return;
+            }
+            try
+            {
+                lens = (Func<Vector3, float, float, float, float, bool>)Delegate.CreateDelegate(typeof(Func<Vector3, float, float, float, float, bool>),
+                    api.GetMethod("Lens", new[] { typeof(Vector3), typeof(float), typeof(float), typeof(float), typeof(float) }));
+                glow = (Func<Vector3, float, float, float, Color, Color, bool>)Delegate.CreateDelegate(typeof(Func<Vector3, float, float, float, Color, Color, bool>),
+                    api.GetMethod("Glow", new[] { typeof(Vector3), typeof(float), typeof(float), typeof(float), typeof(Color), typeof(Color) }));
+                setLook = (Action<Part, string>)Delegate.CreateDelegate(typeof(Action<Part, string>),
+                    api.GetMethod("SetPartLook", new[] { typeof(Part), typeof(string) }));
+                Present = true;
+                object version = api.GetField("Version")?.GetValue(null);
+                Log.Info($"VFX Reconfigured EffectsApi {version} found.");
+            }
+            catch (Exception e)
+            {
+                Log.Warn("VFX Reconfigured's EffectsApi couldn't be bound: " + e.Message);
+                lens = null; glow = null; setLook = null;
+            }
+        }
+
+        public static bool Lens(Vector3 position, float radius, float strength, float ringRadius, float ringAmp) =>
+            lens != null && lens(position, radius, strength, ringRadius, ringAmp);
+
+        public static bool Glow(Vector3 position, float radius, float power, float coreShare, Color edge, Color core) =>
+            glow != null && glow(position, radius, power, coreShare, edge, core);
+
+        public static void SetPartLook(Part part, string look)
+        {
+            if (setLook != null && part != null) setLook(part, look);
+        }
+    }
+}

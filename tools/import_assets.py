@@ -28,6 +28,7 @@ SOURCES = {
 
 # Tints (placeholder look): each weapon's paint pulled towards its beam colour.
 MAGENTA, BLUE, CYAN, VIOLET = '#c8408e', '#3f6fd8', '#3a9cff', '#7a46d8'
+GREEN, PERIWINKLE, NAVY = '#3fbf5a', '#6c6ee0', '#2a3a70'
 
 # (source, path in source, path in assets/, tint or None)
 MANIFEST = [
@@ -68,10 +69,29 @@ MANIFEST = [
     # Antimatter containment trap: BDArmory's ammo box.
     ('BDA', 'Parts/AmmoBox/model.mu', 'Parts/AntimatterTrap/model.mu', None),
     ('BDA', 'Parts/AmmoBox/texture.png', 'Parts/AntimatterTrap/texture.png', VIOLET),
+    # Gravity bomb and tachyon bomb: BDArmory's Mk82.
+    ('BDA', 'Parts/mk82Bomb/model.mu', 'Parts/GravityBomb/model.mu', None),
+    ('BDA', 'Parts/mk82Bomb/texture.png', 'Parts/GravityBomb/texture.png', VIOLET),
+    ('BDA', 'Parts/mk82Bomb/model.mu', 'Parts/TachyonBomb/model.mu', None),
+    ('BDA', 'Parts/mk82Bomb/texture.png', 'Parts/TachyonBomb/texture.png', GREEN),
+    # Warp bomb: NKDR's B-83 (until its own sphere model).
+    ('NKDR', 'parts/B-83 Nuclear/model.mu', 'Parts/WarpBomb/model.mu', None),
+    ('NKDR', 'parts/B-83 Nuclear/B-83.png', 'Parts/WarpBomb/B-83.png', NAVY),
+    # Antimatter bomb: NKDR's Castle Bravo.
+    ('NKDR', 'parts/Castle Bravo/model.mu', 'Parts/AntimatterBomb/model.mu', None),
+    ('NKDR', 'parts/Castle Bravo/COLOR Castle Bravo.png', 'Parts/AntimatterBomb/COLOR Castle Bravo.png', MAGENTA),
+    ('NKDR', 'parts/Castle Bravo/tobump Castle Bravo_NRM.png', 'Parts/AntimatterBomb/tobump Castle Bravo_NRM.png', None),
+    # Mushroom bomb: NKDR's Tsar Bomba (round and fat, like the reference).
+    ('NKDR', 'parts/Tsar Bomba/model.mu', 'Parts/MushroomBomb/model.mu', None),
+    ('NKDR', 'parts/Tsar Bomba/Tsar Bomba.png', 'Parts/MushroomBomb/Tsar Bomba.png', PERIWINKLE),
+    # Tachyon-be-gone: BDArmory's ECM jammer pod.
+    ('BDA', 'Parts/ecmJammer/model.mu', 'Parts/TachyonShield/model.mu', None),
+    ('BDA', 'Parts/ecmJammer/tex_ecmj131.png', 'Parts/TachyonShield/tex_ecmj131.png', GREEN),
     # Impact explosions. Each weapon's explModelPath is its own copy, so its explosions land in their own BDArmory
     # pool, which the plugin watches to add the weapon's flash. The copies share one folder (and its textures).
     ('BDA', 'Models/explosion/explosion.mu', 'FX/Hits/antimatterHit.mu', None),
     ('BDA', 'Models/explosion/30mmExplosion.mu', 'FX/Hits/neutronHit.mu', None),
+    ('BDA', 'Models/explosion/explosion.mu', 'FX/Hits/gravityBlast.mu', None),
     ('BDA', 'Models/explosion/ExpTex2.png', 'FX/Hits/ExpTex2.png', None),
     ('BDA', 'Models/explosion/ExpTex4.png', 'FX/Hits/ExpTex4.png', None),
     ('BDA', 'Models/explosion/smokeCm.png', 'FX/Hits/smokeCm.png', None),

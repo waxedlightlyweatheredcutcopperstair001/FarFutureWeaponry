@@ -183,6 +183,90 @@ namespace FarFutureWeaponry
             return false;
         }
 
+        // ---- Warheads ----
+
+        static readonly Dictionary<Type, FieldInfo> detonatedFields = new Dictionary<Type, FieldInfo>();
+        static MethodInfo createExplosion;
+        static ParameterInfo[] createExplosionParams;
+
+        /// <summary>
+        /// Whether a BDArmory warhead on the part (BDExplosivePart, BDModuleNuke, any BDWarheadBase) has gone off: their
+        /// hasDetonated flag is set as they detonate, before the part is destroyed. (BDArmory also sets it on scene
+        /// changes, so check those separately.)
+        /// </summary>
+        public static bool Detonated(Part part)
+        {
+            if (part == null) return false;
+            for (int i = 0; i < part.Modules.Count; i++)
+            {
+                PartModule m = part.Modules[i];
+                if (m == null) continue;
+                Type t = m.GetType();
+                if (!detonatedFields.TryGetValue(t, out FieldInfo f))
+                {
+                    f = null;
+                    if (t.Assembly.GetName().Name == "BDArmory")
+                        for (Type b = t; b != null && f == null; b = b.BaseType)
+                            f = b.GetField("hasDetonated", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+                    if (f != null && f.FieldType != typeof(bool)) f = null;
+                    detonatedFields[t] = f;
+                }
+                if (f != null && (bool)f.GetValue(m)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// A BDArmory explosion (damage, sound and its visuals, which VFX Reconfigured replaces) of tntKg at position.
+        /// Calls ExplosionFx.CreateExplosion with its defaults for everything not given.
+        /// </summary>
+        public static bool CreateExplosion(Vector3 position, float tntKg, string modelPath, string soundPath, string sourceVessel, string weapon)
+        {
+            if (explosionFxType == null) return false;
+            try
+            {
+                if (createExplosion == null)
+                {
+                    foreach (MethodInfo m in explosionFxType.GetMethods(BindingFlags.Public | BindingFlags.Static))
+                    {
+                        if (m.Name != "CreateExplosion") continue;
+                        ParameterInfo[] p = m.GetParameters();
+                        if (p.Length >= 5 && p[0].ParameterType == typeof(Vector3) && p[1].ParameterType == typeof(float) && p[4].ParameterType.IsEnum)
+                        { createExplosion = m; createExplosionParams = p; break; }
+                    }
+                    if (createExplosion == null) { WarnOnce("createExplosion", "BDArmory's ExplosionFx.CreateExplosion not found: field bombs make no blast."); return false; }
+                }
+                var args = new object[createExplosionParams.Length];
+                for (int i = 0; i < args.Length; i++)
+                {
+                    ParameterInfo p = createExplosionParams[i];
+                    switch (p.Name)
+                    {
+                        case "position": args[i] = position; break;
+                        case "tntMassEquivalent": args[i] = tntKg; break;
+                        case "explModelPath": args[i] = modelPath; break;
+                        case "soundPath": args[i] = soundPath; break;
+                        case "explosionSourceType": args[i] = Enum.Parse(p.ParameterType, "Missile"); break;
+                        case "sourceVesselName": args[i] = sourceVessel; break;
+                        case "sourceWeaponName": args[i] = weapon; break;
+                        default:
+                            args[i] = p.HasDefaultValue ? p.DefaultValue : (p.ParameterType.IsValueType ? Activator.CreateInstance(p.ParameterType) : null);
+                            if (args[i] == null && p.ParameterType.IsValueType) args[i] = Activator.CreateInstance(p.ParameterType);
+                            // (an enum's default can come back as its underlying number)
+                            if (p.ParameterType.IsEnum && args[i] != null && args[i].GetType() != p.ParameterType) args[i] = Enum.ToObject(p.ParameterType, args[i]);
+                            break;
+                    }
+                }
+                createExplosion.Invoke(null, args);
+                return true;
+            }
+            catch (Exception e)
+            {
+                WarnOnce("createExplosionCall", "BDArmory explosion failed: " + (e.InnerException ?? e).Message);
+                return false;
+            }
+        }
+
         // ---- Weapons ----
 
         public static PartModule FindWeapon(Part part)

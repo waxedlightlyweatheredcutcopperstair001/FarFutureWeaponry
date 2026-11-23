@@ -172,8 +172,98 @@ static class Program
         Check(ChargeSound.Generate(44100, 0, 1).Length == 2205, "zero length gets a 50 ms minimum");
     }
 
+    static void FieldTests()
+    {
+        Check(FieldSpec.Parse("Gravity") == FieldKind.Gravity && FieldSpec.Parse(" warp ") == FieldKind.Warp &&
+              FieldSpec.Parse("tachyon") == FieldKind.Tachyon && FieldSpec.Parse(null) == FieldKind.None && FieldSpec.Parse("x") == FieldKind.None, "field kinds parse");
+
+        // Pull: constant 20 g towards the centre inside 1 km, none outside or at the centre.
+        var warp = new FieldSpec { Kind = FieldKind.Warp, Radius = 1000, InnerRadius = 250, AccelG = 20, Duration = 10 };
+        Fields.Pull(warp, 600, 0, 800, out double ax, out double ay, out double az);
+        double a = Math.Sqrt(ax * ax + ay * ay + az * az);
+        Check(Near(a, 20 * 9.81, 1e-9) && ax < 0 && az < 0 && ay == 0 && Near(ax / az, 600.0 / 800, 1e-9), "20 g towards the centre at 1 km");
+        Fields.Pull(warp, 100, 0, 0, out ax, out _, out _);
+        Check(Near(-ax, 196.2, 1e-9), "the same 20 g close in");
+        Fields.Pull(warp, 1001, 0, 0, out ax, out ay, out az);
+        Check(ax == 0 && ay == 0 && az == 0, "no pull outside the radius");
+        Fields.Pull(warp, 0.5, 0, 0, out ax, out _, out _);
+        Check(ax == 0, "no pull in the last metre (no singularity)");
+        Check(Fields.Inside(250, 150, 0, 200) && !Fields.Inside(250, 200, 0, 200), "inside the event horizon");
+
+        // Warp timeline: flash, lens forms, holds, collapses at 10 s; pulling and destroying only while it lasts.
+        var w0 = Fields.At(warp, 0.01); var w5 = Fields.At(warp, 5); var w99 = Fields.At(warp, 9.99); var w10 = Fields.At(warp, 10.05);
+        Check(w0.Flash > 2.5 && w0.LensStrength < 0.05, "warp: blinding flash, lens not formed yet");
+        Check(Near(w5.LensStrength, 1, 1e-9) && w5.LensRadius == 1000 && w5.Pulling && w5.Destroying && w5.Flash < 0.01, "warp: full black hole at 5 s, pulling and destroying");
+        Check(w99.LensStrength < 0.01 && w99.Pulling, "warp: lens nearly gone at the end of its 10 s");
+        Check(!w10.Pulling && !w10.Destroying && w10.Flash > 1 && w10.RingAmp > 0.5, "warp: collapse flash and ripple after 10 s, no more pull");
+        Check(Fields.At(warp, Fields.End(warp) + 0.01).Over && !Fields.At(warp, Fields.End(warp) - 0.01).Over, "warp: over after its end");
+
+        // Gravity: bubble shrinks and strengthens while pulling, then a flash.
+        var grav = new FieldSpec { Kind = FieldKind.Gravity, Radius = 300, AccelG = 6, Duration = 3, BlastTntKg = 250 };
+        var g1 = Fields.At(grav, 0.5); var g2 = Fields.At(grav, 2.5); var g3 = Fields.At(grav, 3.05);
+        Check(g1.Pulling && g2.Pulling && !g3.Pulling, "gravity: pulls for 3 s");
+        Check(g1.LensRadius > g2.LensRadius && g2.LensStrength > g1.LensStrength && g1.LensRadius <= 300, "gravity: the bubble shrinks and strengthens");
+        Check(g3.Flash > 2 && g3.LensStrength == 0 && g1.Flash == 0, "gravity: the white flash comes at the collapse");
+
+        // Tachyon: sphere grows in half a second, holds at 500 m, closes; freezing only during the 10 s.
+        var tach = new FieldSpec { Kind = FieldKind.Tachyon, Radius = 500, Duration = 10 };
+        var t0 = Fields.At(tach, 0.02); var t1 = Fields.At(tach, 1); var t9 = Fields.At(tach, 9.9); var t10 = Fields.At(tach, 10.3); var t11 = Fields.At(tach, 10.65);
+        Check(t0.Freezing && t0.Flash > 2 && t0.SphereRadius < 50, "tachyon: freezes at once, green flash, sphere starting");
+        Check(Near(t1.SphereRadius, 500, 1e-9) && t9.Freezing && Near(t9.SphereRadius, 500, 1e-9), "tachyon: holds at full size");
+        Check(!t10.Freezing && t10.SphereRadius < 500 && t10.SphereRadius > 0, "tachyon: released at 10 s, sphere closing");
+        Check(t11.SphereRadius == 0 && t11.Flash > 0.5, "tachyon: a flash as the sphere closes");
+        Check(!Fields.At(tach, Fields.End(tach) - 0.01).Over && Fields.At(tach, Fields.End(tach) + 0.01).Over, "tachyon: over after its end");
+        Check(!Fields.At(tach, -1).Freezing && !Fields.At(tach, -1).Over, "nothing before the detonation");
+    }
+
+    static void ShatterTests()
+    {
+        // Two clusters of triangles far apart, 2 fragments: every triangle near the same seed goes to the same group.
+        var c = new System.Collections.Generic.List<float>();
+        for (int i = 0; i < 20; i++) { c.Add(i * 0.01f); c.Add(0); c.Add(0); }
+        for (int i = 0; i < 20; i++) { c.Add(100 + i * 0.01f); c.Add(0); c.Add(0); }
+        int[] g = Shatter.Assign(c.ToArray(), 10, 3);
+        Check(g.Length == 40, "a group for each triangle");
+        bool inRange = true; foreach (int x in g) if (x < 0 || x >= 10) inRange = false;
+        Check(inRange, "groups within 0..count-1");
+        int[] again = Shatter.Assign(c.ToArray(), 10, 3);
+        bool same = true; for (int i = 0; i < g.Length; i++) if (g[i] != again[i]) same = false;
+        Check(same, "same seed, same split");
+        Check(Shatter.Assign(c.ToArray(), 1, 3)[39] == 0 && Shatter.Assign(new float[0], 5, 1).Length == 0, "one fragment or no triangles");
+        // Nearest seed: a triangle is never in a group whose seed is further away than another group's (spot check: the
+        // two far clusters never share a group unless the seeds all landed on one side).
+        var groupsLeft = new System.Collections.Generic.HashSet<int>(); var groupsRight = new System.Collections.Generic.HashSet<int>();
+        for (int i = 0; i < 20; i++) groupsLeft.Add(g[i]);
+        for (int i = 20; i < 40; i++) groupsRight.Add(g[i]);
+        groupsLeft.IntersectWith(groupsRight);
+        Check(groupsLeft.Count == 0, "fragments are spatial chunks (the two far clusters share no fragment)");
+
+        Check(Shatter.Spread(0, 10) == 0 && Near(Shatter.Spread(Shatter.BurstTime, 10), 1, 1e-9) && Near(Shatter.Spread(5, 10), 1, 1e-9), "fragments fly out in the burst, then hang");
+        Check(Shatter.Spread(0.1, 10) > 0.5, "fast burst (ease out)");
+        Check(Shatter.Spread(10.1, 10) > 0.9 && Shatter.Spread(10.5, 10) < 0.5 && Shatter.Spread(10 + Shatter.ReturnTime, 10) < 1e-6, "they fly back as the field collapses, slow then snapping together");
+        Check(!Shatter.Reassembled(10.5, 10) && Shatter.Reassembled(10.6, 10), "reassembled after the return");
+    }
+
+    static void FieldSoundTests()
+    {
+        float[] r = FieldSound.Rumble(44100, 3, true, 1);
+        bool ok = r.Length == 132300;
+        foreach (float v in r) if (v < -1 || v > 1 || float.IsNaN(v)) ok = false;
+        Check(ok, "rumble: right length, in range");
+        Check(Math.Abs(r[0]) < 1e-3 && Math.Abs(r[r.Length - 1]) < 1e-3, "rumble: no clicks at the ends");
+        Check(Rms(r, 110000, 130000) > Rms(r, 20000, 40000), "rumble swells towards the collapse");
+        float[] sw = FieldSound.Sweep(44100, 0.8f, 1400, 140, 2);
+        ok = sw.Length == 35280;
+        foreach (float v in sw) if (v < -1 || v > 1 || float.IsNaN(v)) ok = false;
+        Check(ok && Math.Abs(sw[0]) < 1e-3, "sweep: right length, in range, no click");
+        Check(Rms(sw, 1000, 8000) > Rms(sw, 28000, 35000), "sweep fades out");
+    }
+
     static int Main()
     {
+        FieldTests();
+        ShatterTests();
+        FieldSoundTests();
         ChargeSoundTests();
         AntimatterTests();
         ContainmentTests();
