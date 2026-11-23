@@ -39,7 +39,6 @@ namespace FarFutureWeaponry
 
         bool active;            // powered and on
         float switchedAt = -10;
-        readonly List<Renderer> hidden = new List<Renderer>();
         readonly List<PartOverlay> overlays = new List<PartOverlay>();
         int builtFor = -1;
         PartModule bdaCloak;
@@ -86,41 +85,79 @@ namespace FarFutureWeaponry
             if (owners.TryGetValue(vessel, out var owner) && owner != null && owner != this) { Show(); ClearOverlays(); return; }
             float t = Time.time - switchedAt;
             bool rippling = t < rippleSeconds;
-            // Cloaking: the ripple passes, then the craft is gone. Uncloaking: it's back at once, the ripple passes over it.
-            bool hide = active && !rippling;
             bool overlay = active || rippling;
-            if (hide) Hide(); else Show();
-            if (!overlay || FfwShaders.Cloak == null) { ClearOverlays(); return; }
-            if (builtFor != vessel.parts.Count) { ClearOverlays(); BuildOverlays(); }
-            float size = Mathf.Max(5, vessel.vesselSize.magnitude);
             Vector3 c = vessel.CoM;
-            float wave = rippling ? size * 0.75f * t / rippleSeconds : -1;
+            // The wave sweeps out from the middle to past the far end: each part vanishes (or comes back) as it reaches it.
+            float far = 2;
+            foreach (Part p in vessel.parts) if (p != null) far = Mathf.Max(far, Vector3.Distance(p.transform.position, c) + 2);
+            float wave = rippling ? far * Mathf.Clamp01(t / rippleSeconds) : -1;
+            if (FfwShaders.Cloak == null) { if (active && !rippling) Hide(null, 0); else Show(); ClearOverlays(); return; }
+            if (active) { Hide(rippling ? (Vector3?)c : null, wave); if (Time.time >= nextRescan) nextRescan = Time.time + 0.5f; }
+            else if (rippling) HideOutside(c, wave);
+            else Show();
+            if (!overlay) { ClearOverlays(); return; }
+            if (builtFor != vessel.parts.Count) { ClearOverlays(); BuildOverlays(); }
+            float sweep = rippling ? (active ? 1 : -1) : 0;
             foreach (PartOverlay o in overlays)
             {
                 o.Block.SetVector(WaveId, new Vector4(c.x, c.y, c.z, wave));
-                o.Block.SetVector(StateId, new Vector4(1, hide ? 0.25f : 0.6f, 0, 0));
+                o.Block.SetVector(StateId, new Vector4(1, active && !rippling ? 0.25f : 0.6f, sweep, 0));
                 o.Block.SetColor(ColourId, colour);
                 o.Apply();
             }
         }
 
-        /// <summary>Hide every renderer of the craft (parts, their effects and plumes), except the cloak's own overlay.</summary>
-        void Hide()
+        // Each part's own renderers, hidden while it's cloaked (by part: they vanish one by one as the wave reaches them).
+        readonly Dictionary<Part, List<Renderer>> hiddenBy = new Dictionary<Part, List<Renderer>>();
+
+        void Hide(Vector3? centre, float radius)
         {
-            if (hidden.Count > 0 && builtFor == vessel.parts.Count) return;
-            Show();
             foreach (Part p in vessel.parts)
             {
                 if (p == null) continue;
-                foreach (Renderer r in p.GetComponentsInChildren<Renderer>())
-                    if (r != null && r.enabled && !r.name.StartsWith("FFW cloak")) { r.enabled = false; hidden.Add(r); }
+                bool reached = centre == null || Vector3.Distance(p.transform.position, centre.Value) <= radius;
+                SetHidden(p, reached);
             }
         }
 
+        void HideOutside(Vector3 centre, float radius)
+        {
+            foreach (Part p in vessel.parts)
+                if (p != null) SetHidden(p, Vector3.Distance(p.transform.position, centre) > radius);
+        }
+
+        float nextRescan;
+
+        void SetHidden(Part p, bool hide)
+        {
+            bool isHidden = hiddenBy.TryGetValue(p, out var list);
+            if (hide && isHidden && Time.time >= nextRescan)
+            {
+                // (plumes and effects that come on while cloaked: an engine lighting up)
+                foreach (Renderer r in p.GetComponentsInChildren<Renderer>())
+                    if (r != null && r.enabled && !r.name.StartsWith("FFW cloak")) { r.enabled = false; list.Add(r); }
+                return;
+            }
+            if (hide == isHidden) return;
+            if (hide)
+            {
+                list = new List<Renderer>();
+                foreach (Renderer r in p.GetComponentsInChildren<Renderer>())
+                    if (r != null && r.enabled && !r.name.StartsWith("FFW cloak")) { r.enabled = false; list.Add(r); }
+                hiddenBy[p] = list;
+            }
+            else
+            {
+                foreach (Renderer r in list) if (r != null) r.enabled = true;
+                hiddenBy.Remove(p);
+            }
+        }
+
+        /// <summary>Every part back in view.</summary>
         void Show()
         {
-            foreach (Renderer r in hidden) if (r != null) r.enabled = true;
-            hidden.Clear();
+            foreach (var kv in hiddenBy) foreach (Renderer r in kv.Value) if (r != null) r.enabled = true;
+            hiddenBy.Clear();
         }
 
         void BuildOverlays()

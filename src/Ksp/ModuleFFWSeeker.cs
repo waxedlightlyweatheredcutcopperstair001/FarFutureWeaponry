@@ -21,7 +21,10 @@ namespace FarFutureWeaponry
         PartModule missile;
         TrackerKind kind;
         Vector3d lastSeen;            // where it last saw the target (main body frame)
-        bool picked, seen, decoyRolled;
+        bool picked, seen, decoyRolled, noSensor;
+
+        static string SensorName(TrackerKind k) =>
+            k == TrackerKind.Optical ? "optical tracking camera" : k == TrackerKind.CommNet ? "CommNet signal tracker" : "consciousness field sensor";
         float pickedAt;
         int decoy = -1;                 // the hologram it's fooled into following (optical), or -1
         [KSPField] public float decoyChance = 0.85f;
@@ -42,9 +45,9 @@ namespace FarFutureWeaponry
         {
             switch (Core.Tracking.Parse(tracker))
             {
-                case TrackerKind.Optical: return "<b>Optical tracking:</b> follows the target it was fired at (your KSP target, or the weapon manager's) out to 20 km. Ignores flares, chaff and jamming; fooled by cloaks.";
-                case TrackerKind.CommNet: return "<b>CommNet tracking:</b> rides the target's own radio link. Lost if the target drops off the CommNet.";
-                case TrackerKind.Consciousness: return "<b>Consciousness field detection:</b> senses Kerbal minds within 5 km. Uncrewed craft can't be found.";
+                case TrackerKind.Optical: return "<b>Optical tracking:</b> follows the target it was fired at (your KSP target, or the weapon manager's) out to 20 km. Needs an optical tracking camera on the launching craft. Ignores flares, chaff and jamming; fooled by cloaks.";
+                case TrackerKind.CommNet: return "<b>CommNet tracking:</b> rides the target's own radio link. Lost if the target drops off the CommNet. Needs a CommNet signal tracker on the launching craft.";
+                case TrackerKind.Consciousness: return "<b>Consciousness field detection:</b> senses Kerbal minds within 5 km. Uncrewed craft can't be found. Needs a consciousness field sensor on the launching craft.";
             }
             return "";
         }
@@ -56,8 +59,18 @@ namespace FarFutureWeaponry
             if (!picked)
             {
                 picked = true;
-                Target = Targets.Choose(Bda.MissileSource(missile));
+                Vessel source = Bda.MissileSource(missile);
+                Target = Targets.Choose(source);
                 pickedAt = Time.time;
+                // No lock without a matching sensor aboard the craft that fired it.
+                if (Target != null && !ModuleFFWSensor.Has(source, kind))
+                {
+                    Log.Info($"{part.partInfo.title}: no {Core.Tracking.Name(kind)} sensor aboard {(source != null ? source.vesselName : "the launcher")}: no lock.");
+                    if (source != null && source.isActiveVessel)
+                        ScreenMessages.PostScreenMessage($"{part.partInfo.title}: no lock. The craft needs a {SensorName(kind)}.", 4, ScreenMessageStyle.UPPER_CENTER);
+                    Target = null;
+                    noSensor = true;
+                }
                 Log.Info($"{part.partInfo.title}: {Core.Tracking.Name(kind)} seeker on {(Target != null ? Target.vesselName : "nothing (no target set)")}.");
             }
             Vector3 me = part.transform.position;
@@ -100,7 +113,7 @@ namespace FarFutureWeaponry
                 Bda.SteerMissile(missile, Visuals.FromFrame(lastSeen), Vector3.zero, true);
                 status = Core.Tracking.Name(kind) + ": lost, last known position";
             }
-            else status = Core.Tracking.Name(kind) + ": no target";
+            else status = Core.Tracking.Name(kind) + (noSensor ? ": no lock (no sensor aboard)" : ": no target");
         }
     }
 }

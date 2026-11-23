@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.8.1
+# Far Future Weaponry 0.9.0
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -33,11 +33,11 @@ All of them are in the Utility category and in BDArmory's own part filter.
 
 ### Missiles
 
-FFW's own trackers go for your KSP target (right-click a craft, Set as Target), or the weapon manager's target in guard mode. Flares, chaff and jamming don't fool them. The weapon manager lists them as "Unguided" because BDArmory doesn't know these trackers.
+FFW's own trackers go for your KSP target (right-click a craft, Set as Target), or the weapon manager's target in guard mode. Flares, chaff and jamming don't fool them. **A missile can only lock on if the craft firing it carries the matching tracking sensor** (see Sensors below); otherwise it flies off unguided and says so on screen. The weapon manager lists them as "Unguided" because BDArmory doesn't know these trackers.
 
 | Missile | Tracking | What it does |
 |---|---|---|
-| **Long Range Nuclear Cruise Missile** | GPS | Flies low to a GPS target up to 100 km away on a nuclear ramjet (works only in air), then 1 megaton. |
+| **Long Range Nuclear Cruise Missile** | GPS | Flies low to a GPS target up to 100 km away on a nuclear ramjet (works only in air), then 1 megaton. Leaves a faint glowing trail. |
 | **Quantum Phase-Shift Missile** | Optical (20 km; fooled by cloaks) | 400 m out it vanishes in a flash of bent, colour-torn space; 1.5 s later it reappears inside the target's hull and goes off there. |
 | **Kessler Swarm Pod** | Radar (lock the target first) | 500 m out it splits into 100 hypervelocity darts aimed where the target will be; each goes through up to three parts and shreds solar panels, radiators, wings and engines. |
 | **Telemetry Leech Missile** | CommNet (craft with a CommNet link) | An explosion, then 30 s without antennas and 2000 ElectricCharge drained. |
@@ -54,6 +54,8 @@ Drop them like any BDArmory bomb.
 | **Warp Bomb** | A black hole for 10 s, with air rushing in. Everything within 1 km is pulled in at 20 g, and anything that gets within 250 m is destroyed. |
 | **Tachyon Bomb** | A green dome (everything inside tinted green) stops time for every craft within 500 m, yours included. They slow to a stop: their engines, plumes, sounds, landing gear and kerbals all freeze, and nothing burns fuel. Explosions inside stop too, damage included. Set how long it lasts in the part's window, from 5 to 60 s. Then time speeds back up, and each craft carries on as it was. The bomb's flash and pieces hang frozen in the middle, play backwards at the end, and the bomb drops as a harmless dud. No damage. |
 | **Antimatter Bomb** | About 500 megatons, drawn as an antimatter blast. Anything loaded within about 40 km is destroyed. |
+| **Blue Rinse** | An electric-blue sphere spreads out to 1 km. Every Kerbal it reaches dies, aboard a craft or on EVA, under a blue wave over the hull. Nothing else is harmed. |
+| **Seismic Charge** | A beat of silence, a deep ringing "bwaaang", and a flat electric-blue ring races out to 1 km, level with the ground. Every part it passes through (within 6 m of its plane) takes 4000 damage; buildings in its path come down. Anything above or below it is untouched. |
 | **Mushroom Bomb** | About 2 megatons, with a green flash, green flames and a dark green cloud. Danger radius about 9 km. |
 
 ### Countermeasures
@@ -61,11 +63,21 @@ Drop them like any BDArmory bomb.
 | Part | What it does |
 |---|---|
 | **Tachyon-be-gone** | While it's on, the craft is immune to tachyon weapons (Tachyon Bomb, Tachyon Gun, Chronos Rust-Dart). |
-| **Cloaking Device** | Light ripples over the craft and it all but vanishes, plumes too: a faint blue outline and a shimmer are all that's left. Fools optical, infrared and anti-radiation tracking. 10 EC/s. |
+| **Cloaking Device** | Light ripples over the craft and each part vanishes as the ripple reaches it, plumes too: a faint blue outline and a shimmer are all that's left. Fools optical, infrared and anti-radiation tracking. 10 EC/s. |
 | **Force Field Generator** | A shimmer, then a steady electric-blue outline. Blocks incoming damage, each hit flashing blue, paid for in ElectricCharge (2 EC per point of damage). Collapses when the charge runs out. Tachyon weapons and phase-shifted missiles get through. |
 | **Hologram Generator** | Six glitchy copies of the craft round it for 30 s. Optical tracking likely follows one of them; they also throw decoy flares and chaff. 1500 EC, 60 s recharge. |
-| **Signal Scrambler** | Craft within 5 km lose radar and CommNet for 20 s, and remotely flown ones can't be controlled. Hides you from CommNet tracking. Your screen glitches. 2000 EC, 60 s recharge. |
+| **Signal Scrambler** | Craft within 5 km lose radar and CommNet for 20 s, and remotely flown ones can't be controlled. Hides you from CommNet tracking. Your screen and interface glitch. 2000 EC, 60 s recharge. |
 | **Alcubierre Micro-Hop Drive** | Jumps the craft 500 m along its way, with space imploding where it left and arrived, and breaks every lock on it. 5000 EC, 45 s recharge. |
+
+### Sensors
+
+FFW's missiles need a matching sensor on the craft that fires them. Each sensor follows your target and shows in its part window whether it can see it, and how far away it is. They draw 0.5 EC/s; without power they can't lock.
+
+| Part | What it does |
+|---|---|
+| **Optical Tracking Camera** | For optically tracked missiles (Quantum Phase-Shift, Chronos Rust-Dart). Sees the target out to 20 km unless it's cloaked, and turns its head to follow it. |
+| **CommNet Signal Tracker** | For CommNet-tracked missiles (Telemetry Leech). Follows any target with a CommNet link. |
+| **Consciousness Field Sensor** | For consciousness-tracked missiles (Kraken). Finds crewed craft within 5 km. |
 
 ## Antimatter
 

@@ -41,9 +41,16 @@ namespace FarFutureWeaponry
             return c;
         }
 
-        static AudioClip StartSound(FieldSpec s) => s.Kind == FieldKind.Tachyon
-            ? Clip("tachyon-start", () => FieldSound.Sweep(Rate, 0.9f, 1400, 140, 3))
-            : Clip(Key("rumble", s.Duration), () => FieldSound.Rumble(Rate, (float)s.Duration + 0.3f, true, 5));
+        static AudioClip StartSound(FieldSpec s)
+        {
+            switch (s.Kind)
+            {
+                case FieldKind.Tachyon: return Clip("tachyon-start", () => FieldSound.Sweep(Rate, 0.9f, 1400, 140, 3));
+                case FieldKind.Rinse: return Clip("rinse", () => FieldSound.Sweep(Rate, 2.2f, 700, 90, 6));
+                case FieldKind.Seismic: return Clip("seismic", () => FieldSound.Seismic(Rate, 4, 7));
+                default: return Clip(Key("rumble", s.Duration), () => FieldSound.Rumble(Rate, (float)s.Duration + 0.3f, true, 5));
+            }
+        }
 
         const float EndSweepSeconds = 0.7f;
         static AudioClip EndSound() => Clip("tachyon-end", () => FieldSound.Sweep(Rate, EndSweepSeconds, 140, 1500, 4));
@@ -83,6 +90,10 @@ namespace FarFutureWeaponry
             public readonly List<(Behaviour fx, PropertyInfo start, float at)> PausedBlasts = new List<(Behaviour, PropertyInfo, float)>();
             public ShatterFx Shatter;
             public bool Removed;
+            public readonly HashSet<Vessel> Rinsed = new HashSet<Vessel>();     // Blue Rinse: crews already reached
+            public readonly HashSet<Part> RingHit = new HashSet<Part>();        // seismic charge: parts already cut
+            public float RingDamage, RingThickness, LastRing;
+            public Mesh RingMesh; public Material RingMat; public Transform RingT;
         }
 
         sealed class Flash
@@ -214,6 +225,8 @@ namespace FarFutureWeaponry
             {
                 case FieldKind.Gravity: f.Edge = new Color(0.75f, 0.8f, 1f); f.Core = Color.white; f.SphereColour = new Color(0.85f, 0.9f, 1f); break;
                 case FieldKind.Warp: f.Edge = new Color(0.3f, 0.5f, 1f); f.Core = new Color(0.9f, 0.95f, 1f); break;
+                case FieldKind.Rinse: f.Edge = new Color(0.25f, 0.55f, 1f); f.Core = new Color(0.8f, 0.9f, 1f); f.SphereColour = new Color(0.3f, 0.6f, 1f); break;
+                case FieldKind.Seismic: f.Edge = new Color(0.3f, 0.65f, 1f); f.Core = Color.white; break;
                 default: f.Edge = new Color(0.25f, 1f, 0.4f); f.Core = new Color(0.85f, 1f, 0.85f); f.SphereColour = new Color(0.25f, 1f, 0.4f); break;
             }
             f.Go = new GameObject("FFW field " + spec.Kind);
@@ -225,7 +238,8 @@ namespace FarFutureWeaponry
             f.Audio.volume = GameSettings.SHIP_VOLUME;
             f.Audio.PlayOneShot(StartSound(spec));
 
-            if (spec.Kind == FieldKind.Tachyon || spec.Kind == FieldKind.Gravity) MakeSphere(f);
+            if (spec.Kind == FieldKind.Tachyon || spec.Kind == FieldKind.Gravity || spec.Kind == FieldKind.Rinse) MakeSphere(f);
+            if (spec.Kind == FieldKind.Seismic) { f.RingDamage = bomb.ringDamage; f.RingThickness = bomb.ringThickness; MakeRing(f); }
             if (spec.Kind == FieldKind.Gravity || spec.Kind == FieldKind.Warp) f.Air = AirParticles(f);
             if (spec.Kind == FieldKind.Tachyon)
             {
@@ -233,7 +247,7 @@ namespace FarFutureWeaponry
                 f.NearShimmer = ShimmerParticles(f, true);
                 if (bomb.shatter) f.Shatter = ShatterFx.Capture(bomb.part);
             }
-            if (spec.Kind == FieldKind.Warp && spec.InnerRadius > 0)
+            if ((spec.Kind == FieldKind.Warp && spec.InnerRadius > 0) || spec.Kind == FieldKind.Seismic)
             {
                 f.Buildings = new List<DestructibleBuilding>();
                 foreach (DestructibleBuilding b in FindObjectsOfType<DestructibleBuilding>())
@@ -290,23 +304,7 @@ namespace FarFutureWeaponry
                     if (ClosestPart(v, at) > b.killCrewRadius) continue;
                     int killed = KillCrew(v);
                     if (killed > 0) Log.Info($"{b.part.partInfo.title}: {killed} Kerbal(s) aboard {v.vesselName} killed.");
-                    var w = new Wave { Start = Time.time, Colour = Rgba.Parse(b.waveColor, new Rgba(1, 0.1f, 0.1f, 1)).ToColor() };
-                    FfwShaders.Load();
-                    if (FfwShaders.Wave != null)
-                    {
-                        // A thin red layer sweeping over the hull's own contours from where it hit, out to its far end.
-                        float far = 0;
-                        foreach (Part p in v.parts) if (p != null) far = Mathf.Max(far, Vector3.Distance(p.transform.position, at) + 3);
-                        w.Where = Visuals.ToFrame(at); w.Radius = far; w.Seconds = Mathf.Clamp(far / 12, 0.8f, 2.5f);
-                        w.Overlays = new List<PartOverlay>();
-                        foreach (Part p in v.parts) if (p != null) { var o = new PartOverlay(p, FfwShaders.Wave, "FFW kraken wave"); if (!o.Empty) w.Overlays.Add(o); else o.Destroy(); }
-                    }
-                    else
-                    {
-                        float size = Mathf.Max(10, v.vesselSize.magnitude);
-                        w.Where = Visuals.ToFrame(v.CoM); w.Seconds = 0.9f; w.Radius = size * 1.2f;
-                    }
-                    waves.Add(w);
+                    ContourWave(v, at, Rgba.Parse(b.waveColor, new Rgba(1, 0.1f, 0.1f, 1)).ToColor());
                 }
             }
 
@@ -324,6 +322,30 @@ namespace FarFutureWeaponry
                         TachyonHit.Apply(hit, b.slowFactor, b.slowSeconds, b.slowSeconds > 0 ? 0 : b.rustAmount,
                                          b.slowSeconds > 0 ? b.rustAmount / b.slowSeconds : 0, b.hitDamage);
                 }
+        }
+
+        /// <summary>
+        /// A thin layer of light sweeping over a craft's own parts from <paramref name="at"/> out to its far end (the Kraken,
+        /// the Blue Rinse); without the plugin's shaders, a coloured shell through VFX Reconfigured.
+        /// </summary>
+        void ContourWave(Vessel v, Vector3 at, Color colour)
+        {
+            var w = new Wave { Start = Time.time, Colour = colour };
+            FfwShaders.Load();
+            if (FfwShaders.Wave != null)
+            {
+                float far = 0;
+                foreach (Part p in v.parts) if (p != null) far = Mathf.Max(far, Vector3.Distance(p.transform.position, at) + 3);
+                w.Where = Visuals.ToFrame(at); w.Radius = far; w.Seconds = Mathf.Clamp(far / 12, 0.8f, 2.5f);
+                w.Overlays = new List<PartOverlay>();
+                foreach (Part p in v.parts) if (p != null) { var o = new PartOverlay(p, FfwShaders.Wave, "FFW contour wave"); if (!o.Empty) w.Overlays.Add(o); else o.Destroy(); }
+            }
+            else
+            {
+                float size = Mathf.Max(10, v.vesselSize.magnitude);
+                w.Where = Visuals.ToFrame(v.CoM); w.Seconds = 0.9f; w.Radius = size * 1.2f;
+            }
+            waves.Add(w);
         }
 
         static float ClosestPart(Vessel v, Vector3 at)
@@ -384,6 +406,66 @@ namespace FarFutureWeaponry
             l.type = LightType.Point; l.color = c; l.intensity = 0; l.shadows = LightShadows.None;
             l.range = FallbackLightRange;
             return l;
+        }
+
+        /// <summary>The seismic ring: a flat band of light, rebuilt to its radius every frame (DrawRing).</summary>
+        void MakeRing(Field f)
+        {
+            f.RingMesh = new Mesh { name = "FFW seismic ring" };
+            f.RingMesh.MarkDynamic();
+            f.RingMat = Visuals.Additive(Visuals.White, new Color(0.5f, 0.5f, 0.5f, 0.5f));
+            var go = new GameObject("FFW seismic ring");
+            go.transform.SetParent(f.Go.transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = f.RingMesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = f.RingMat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; mr.receiveShadows = false;
+            f.RingT = go.transform;
+        }
+
+        const int RingSegments = 192;
+        static readonly float[] RingOffsets = { -1, -0.2f, 0, 0.2f, 1 };        // across the band (x its half-width)
+        static readonly float[] RingGlow = { 0, 0.6f, 1, 0.6f, 0 };
+
+        static void DrawRing(Field f, Vector3 centre, float radius, float alpha)
+        {
+            if (f.RingMesh == null) return;
+            bool on = radius > 0.5f && alpha > 0.003f;
+            f.RingT.gameObject.SetActive(on);
+            if (!on) return;
+            Vector3 up = (centre - FlightGlobals.currentMainBody.position).normalized;
+            f.RingT.position = centre;
+            f.RingT.rotation = Quaternion.FromToRotation(Vector3.up, up);
+            float half = Mathf.Max(4, f.RingThickness * 1.2f);
+            int rows = RingOffsets.Length;
+            var v = new Vector3[(RingSegments + 1) * rows];
+            var c = new Color[v.Length];
+            var t = new int[RingSegments * (rows - 1) * 6];
+            Color col = new Color(0.35f, 0.7f, 1f);
+            for (int i = 0; i <= RingSegments; i++)
+            {
+                float a = 2 * Mathf.PI * i / RingSegments, ca = Mathf.Cos(a), sa = Mathf.Sin(a);
+                float flicker = 0.85f + 0.15f * Mathf.Sin(a * 37 + Time.time * 23);
+                for (int k = 0; k < rows; k++)
+                {
+                    float r = Mathf.Max(0, radius + RingOffsets[k] * half);
+                    v[i * rows + k] = new Vector3(ca * r, 0, sa * r);
+                    float g = RingGlow[k] * alpha * flicker;
+                    Color cc = k == 2 ? Color.Lerp(col, Color.white, 0.6f) : col;
+                    c[i * rows + k] = new Color(cc.r * g, cc.g * g, cc.b * g, g);
+                }
+            }
+            int n = 0;
+            for (int i = 0; i < RingSegments; i++)
+                for (int k = 0; k < rows - 1; k++)
+                {
+                    int a0 = i * rows + k, b0 = (i + 1) * rows + k;
+                    t[n++] = a0; t[n++] = b0; t[n++] = a0 + 1;
+                    t[n++] = a0 + 1; t[n++] = b0; t[n++] = b0 + 1;
+                }
+            f.RingMesh.Clear();
+            f.RingMesh.vertices = v; f.RingMesh.colors = c; f.RingMesh.triangles = t;
+            f.RingMesh.RecalculateBounds();
         }
 
         void MakeSphere(Field f)
@@ -536,6 +618,9 @@ namespace FarFutureWeaponry
                     PauseBlasts(f, centre, look);
                 }
 
+                if (f.Spec.Kind == FieldKind.Rinse && look.Killing) Rinse(f, centre, (float)look.SphereRadius);
+                if (f.Spec.Kind == FieldKind.Seismic) Cut(f, centre, (float)look.RingRadius2);
+
                 if (f.Spec.Kind == FieldKind.Gravity && !f.Blasted && t >= f.Spec.Duration)
                 {
                     f.Blasted = true;
@@ -555,6 +640,54 @@ namespace FarFutureWeaponry
                 }
                 if (look.Over) { Remove(f); fields.RemoveAt(i); }
             }
+        }
+
+        /// <summary>The Blue Rinse reaching a craft: every Kerbal aboard dies, and a blue wave passes over its hull.</summary>
+        void Rinse(Field f, Vector3 centre, float radius)
+        {
+            foreach (Vessel v in FlightGlobals.VesselsLoaded)
+            {
+                if (v == null || f.Rinsed.Contains(v) || ClosestPart(v, centre) > radius) continue;
+                f.Rinsed.Add(v);
+                int killed = KillCrew(v);
+                if (killed > 0) Log.Info($"Blue Rinse: {killed} Kerbal(s) aboard {v.vesselName} killed.");
+                if (killed > 0 && !v.isEVA) ContourWave(v, centre, new Color(0.3f, 0.6f, 1f));
+            }
+        }
+
+        /// <summary>
+        /// The seismic ring passing: every part whose centre lies within the ring's thickness of its plane, between where
+        /// the ring was last step and where it is now, takes the damage once (a force field can stop it); buildings in its
+        /// path come down.
+        /// </summary>
+        void Cut(Field f, Vector3 centre, float ring)
+        {
+            Vector3 up = (centre - FlightGlobals.currentMainBody.position).normalized;
+            float from = f.LastRing - 2, to = ring + 1, thick = f.RingThickness;
+            f.LastRing = ring;
+            if (ring <= 0) return;
+            foreach (Vessel v in FlightGlobals.VesselsLoaded)
+            {
+                if (v == null) continue;
+                foreach (Part p in v.parts)
+                {
+                    if (p == null || f.RingHit.Contains(p)) continue;
+                    Vector3 d = p.transform.position - centre;
+                    float h = Vector3.Dot(d, up), r = (d - up * h).magnitude;
+                    if (Mathf.Abs(h) > thick + 1 || r < from || r > to) continue;
+                    f.RingHit.Add(p);
+                    Bda.AddDamage(p, f.RingDamage);
+                    SmallFlash(p.transform.position, f.Edge, 3, 0.15f);
+                }
+            }
+            if (f.Buildings != null)
+                foreach (DestructibleBuilding b in f.Buildings)
+                {
+                    if (b == null || b.IsDestroyed) continue;
+                    Vector3 d = b.transform.position - centre;
+                    float h = Vector3.Dot(d, up), r = (d - up * h).magnitude;
+                    if (Mathf.Abs(h) < thick + 15 && r >= from && r <= to) b.Demolish();
+                }
         }
 
         /// <summary>A craft whose centre is inside the field is caught (unless it has an active Tachyon-be-gone).</summary>
@@ -636,6 +769,7 @@ namespace FarFutureWeaponry
                     Vfxr.Glow(centre, (float)look.FlashRadius, (float)look.Flash, 0.2f, f.Edge, f.Core);
                 if (f.Light != null) { f.Light.transform.position = centre; f.Light.intensity = Mathf.Min(8, (float)look.Flash * 3); }
                 if (f.Sphere != null) DrawSphere(f, look, centre, cam, t);
+                if (f.RingMesh != null) DrawRing(f, centre, (float)look.RingRadius2, (float)look.RingAlpha2);
                 if (f.Spec.Kind == FieldKind.Tachyon)
                 {
                     if (look.Slowed) Vfxr.TimeScale(centre, (float)f.Spec.Radius, (float)look.Speed);
@@ -760,6 +894,9 @@ namespace FarFutureWeaponry
             // and out. (Its own sphere below is the fallback.)
             if (on && f.Spec.Kind == FieldKind.Tachyon &&
                 Vfxr.TintSphere(centre, r, TachyonTint, 0.6f * (float)look.SphereAlpha, TachyonEdge, 1.2f * (float)look.SphereAlpha)) on = false;
+            // The Blue Rinse: a faint blue inside, a bright electric-blue edge.
+            if (on && f.Spec.Kind == FieldKind.Rinse &&
+                Vfxr.TintSphere(centre, r, new Color(0.7f, 0.82f, 1f), 0.3f * (float)look.SphereAlpha, new Color(0.3f, 0.6f, 1f), 2f * (float)look.SphereAlpha)) on = false;
             f.SphereT.gameObject.SetActive(on);
             if (!on) return;
             f.SphereT.localScale = Vector3.one * r;
@@ -791,6 +928,8 @@ namespace FarFutureWeaponry
             if (f.NearShimmer != null) Destroy(f.NearShimmer.gameObject, 3);
             if (f.Go != null) Destroy(f.Go, 3);   // (let the last sound and particles finish)
             if (f.Sphere != null) Destroy(f.Sphere);
+            if (f.RingMesh != null) Destroy(f.RingMesh);
+            if (f.RingMat != null) Destroy(f.RingMat);
             if (f.SphereMat != null) Destroy(f.SphereMat);
             foreach (Material m in f.Materials) Destroy(m, 3.5f);
         }

@@ -240,6 +240,18 @@ static class Program
         Check(!t12.Slowed && t12.Speed == 1 && t12.Flash == 0 && t12.SphereRadius == 0, "tachyon: all back to normal after the speed-up");
         Check(!Fields.At(tach, Fields.End(tach) - 0.01).Over && Fields.At(tach, Fields.End(tach) + 0.01).Over, "tachyon: over after its end");
         Check(!Fields.At(tach, -1).Freezing && !Fields.At(tach, -1).Over, "nothing before the detonation");
+
+        // Blue Rinse: the sphere spreads to 1 km in 2.5 s (killing as it goes), then fades.
+        var rinse = new FieldSpec { Kind = FieldKind.Rinse, Radius = 1000 };
+        Check(FieldSpec.Parse("rinse") == FieldKind.Rinse && FieldSpec.Parse("Seismic") == FieldKind.Seismic, "rinse and seismic parse");
+        var r1 = Fields.At(rinse, 0.5); var r2 = Fields.At(rinse, 2.5); var r3 = Fields.At(rinse, 3);
+        Check(r1.SphereRadius > 400 && r1.SphereRadius < 1000 && r1.Killing && Near(r2.SphereRadius, 1000) && r2.Killing, "rinse: spreads fast, easing out, to 1 km");
+        Check(!r3.Killing && r3.SphereAlpha < r2.SphereAlpha && Fields.At(rinse, Fields.End(rinse) + 0.01).Over, "rinse: then fades, killing no more");
+        // Seismic charge: a ring at 400 m/s out to 1 km (2.5 s), fading over the last fifth.
+        var seis = new FieldSpec { Kind = FieldKind.Seismic, Radius = 1000, RingSpeed = 400 };
+        var s1 = Fields.At(seis, 1); var s2 = Fields.At(seis, 2.45); var s3 = Fields.At(seis, 2.55);
+        Check(Near(s1.RingRadius2, 400) && s1.RingAlpha2 == 1 && s2.RingRadius2 > 950 && s2.RingAlpha2 < 0.5, "seismic: ring spreads at 400 m/s and fades near 1 km");
+        Check(s3.RingRadius2 == 1000 && s3.RingAlpha2 == 0 && Fields.At(seis, 2.7).Over, "seismic: gone after reaching 1 km");
     }
 
     static void ShatterTests()
@@ -283,6 +295,12 @@ static class Program
         foreach (float v in sw) if (v < -1 || v > 1 || float.IsNaN(v)) ok = false;
         Check(ok && Math.Abs(sw[0]) < 1e-3, "sweep: right length, in range, no click");
         Check(Rms(sw, 1000, 8000) > Rms(sw, 28000, 35000), "sweep fades out");
+        float[] se = FieldSound.Seismic(44100, 4, 7);
+        ok = se.Length == 176400;
+        foreach (float v in se) if (v < -1 || v > 1 || float.IsNaN(v)) ok = false;
+        Check(ok && Math.Abs(se[se.Length - 1]) < 1e-3, "seismic sound: right length, in range, no click at the end");
+        Check(Rms(se, 0, 5000) < 1e-6 && Rms(se, 6000, 20000) > 0.05, "seismic sound: a beat of silence, then the strike");
+        Check(Rms(se, 6000, 20000) > Rms(se, 140000, 170000), "seismic sound rings out");
     }
 
     static void TrackingTests()

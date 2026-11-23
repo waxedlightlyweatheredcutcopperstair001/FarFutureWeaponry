@@ -30,6 +30,7 @@ SOURCES = {
 MAGENTA, BLUE, CYAN, VIOLET = '#c8408e', '#3f6fd8', '#3a9cff', '#7a46d8'
 GREEN, PERIWINKLE, NAVY = '#3fbf5a', '#6c6ee0', '#2a3a70'
 OLIVE, RED, ORANGE, TEAL, DARKVIOLET = '#7f8a3a', '#c83a3a', '#d8782a', '#2aa6b8', '#4a2a8a'
+ELECTRIC, STEEL = '#2f8cff', '#5a7a9a'
 
 # (source, path in source, path in assets/, tint or None)
 MANIFEST = [
@@ -133,6 +134,17 @@ MANIFEST = [
     ('BDA', 'Parts/radarDataReceiver/tex_dataReceiver.png', 'Parts/SignalScrambler/tex_dataReceiver.png', MAGENTA),
     ('BDA', 'Parts/ecmJammer/model.mu', 'Parts/HopDrive/model.mu', None),
     ('BDA', 'Parts/ecmJammer/tex_ecmj131.png', 'Parts/HopDrive/tex_ecmj131.png', DARKVIOLET),
+    # 0.9: Blue Rinse, seismic charge and the tracking sensors.
+    ('BDA', 'Parts/jdamMk83/model.mu', 'Parts/BlueRinseBomb/model.mu', None),
+    ('BDA', 'Parts/jdamMk83/tex_jdam.png', 'Parts/BlueRinseBomb/tex_jdam.png', ELECTRIC),
+    ('BDA', 'Parts/clusterBomb/model.mu', 'Parts/SeismicCharge/model.mu', None),
+    ('BDA', 'Parts/clusterBomb/texture.png', 'Parts/SeismicCharge/texture.png', STEEL),
+    ('BDA', 'Parts/targetingCam/flirBall.mu', 'Parts/OpticalCamera/model.mu', None),
+    ('BDA', 'Parts/targetingCam/texture.png', 'Parts/OpticalCamera/texture.png', CYAN),
+    ('BDA', 'Parts/radarDataReceiver/model.mu', 'Parts/CommNetTracker/model.mu', None),
+    ('BDA', 'Parts/radarDataReceiver/tex_dataReceiver.png', 'Parts/CommNetTracker/tex_dataReceiver.png', TEAL),
+    ('BDA', 'Parts/SonarPod/BDAsonarPod1A.mu', 'Parts/ConsciousnessSensor/model.mu', None),
+    ('BDA', 'Parts/SonarPod/BDAsonarpodA.png', 'Parts/ConsciousnessSensor/BDAsonarpodA.png', RED),
     # Missile exhaust and engine sounds (BDArmory's: their paths differ between BDArmory and BDArmory Lite).
     ('BDA', 'Models/exhaust/smallExhaust.mu', 'FX/Exhaust/smallExhaust.mu', None),
     ('BDA', 'Models/exhaust/mediumExhaust.mu', 'FX/Exhaust/mediumExhaust.mu', None),

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.0
+
+New parts from the updated design, and one extra.
+
+- **Blue Rinse** (bomb): an electric-blue sphere spreads to 1 km and kills every Kerbal it reaches. No other damage.
+- **Seismic Charge** (bomb): a flat electric-blue ring races out to 1 km, level with the ground, with a deep ringing
+  "bwaaang". Everything it passes through takes heavy damage; anything above or below it is untouched.
+- **Tracking sensors**: the Optical Tracking Camera, CommNet Signal Tracker and Consciousness Field Sensor. FFW
+  missiles now need the matching sensor on the craft that fires them to lock on. The sensors show what they see in
+  their part window, and the camera turns to follow the target.
+- **Cloaking Device**: each part vanishes (or reappears) as the ripple passes over it, instead of the whole craft
+  staying visible until the ripple ends. Needs the rebuilt shader bundle (Windows build) for the full effect.
+- **Signal Scrambler**: your own interface glitches too: the altimeter, navball, staging list and toolbar jolt,
+  stretch and flicker for a moment.
+- **Long Range Nuclear Cruise Missile**: leaves a faint glowing trail.
+- New descriptions for the Phase-Shift, Telemetry Leech, Micro-Hop Drive and Point-Defense Laser.
+
 ## 0.8.1
 
 - Quantum Phase-Shift Missile: its trail vanishes with it, instead of staying behind and moving about while it's gone.

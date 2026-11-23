@@ -32,6 +32,35 @@ namespace FarFutureWeaponry.Core
         }
 
         /// <summary>
+        /// The seismic charge: a beat of silence, then a deep, ringing "bwaaang": a low tone and metallic overtones that
+        /// bend down and ring out over a few seconds.
+        /// </summary>
+        public static float[] Seismic(int sampleRate, float seconds, int seed = 1)
+        {
+            int n = Math.Max(1, (int)(sampleRate * Math.Max(0.5f, seconds)));
+            var s = new float[n];
+            var rng = new Random(seed);
+            double[] ratio = { 1, 2.01, 2.76, 3.98, 5.4 }, amp = { 0.55, 0.3, 0.22, 0.12, 0.08 }, decay = { 2.2, 1.6, 1.1, 0.8, 0.5 };
+            var phase = new double[ratio.Length];
+            int start = (int)(0.12 * sampleRate);
+            for (int i = start; i < n; i++)
+            {
+                double t = (double)(i - start) / sampleRate;
+                double f0 = 70 * (1 + 0.5 * Math.Exp(-t / 0.15));   // the strike bends down into the ring
+                double v = 0;
+                for (int k = 0; k < ratio.Length; k++)
+                {
+                    phase[k] += 2 * Math.PI * f0 * ratio[k] / sampleRate;
+                    v += Math.Sin(phase[k]) * amp[k] * Math.Exp(-t / decay[k]);
+                }
+                v += (rng.NextDouble() * 2 - 1) * 0.35 * Math.Exp(-t / 0.05);   // the crack at the start
+                double env = Math.Min(1, (i - start) / (0.004 * sampleRate)) * Math.Min(1, (n - 1 - i) / (0.05 * sampleRate));
+                s[i] = (float)Math.Max(-1, Math.Min(1, v * env * 0.85));
+            }
+            return s;
+        }
+
+        /// <summary>
         /// A swept tone with a shimmer of noise: falling for the tachyon field's start (time stopping), rising for its
         /// collapse (time catching up).
         /// </summary>

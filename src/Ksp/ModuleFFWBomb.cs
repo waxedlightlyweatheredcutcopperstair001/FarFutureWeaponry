@@ -31,6 +31,11 @@ namespace FarFutureWeaponry
         [KSPField] public float flashSeconds = 1.5f;
         [KSPField] public bool shatter = false;
 
+        // Seismic charge: the ring's speed, damage to each part it passes through, and how thick it is (m either side).
+        [KSPField] public float ringSpeed = 400;
+        [KSPField] public float ringDamage = 4000;
+        [KSPField] public float ringThickness = 6;
+
         // Telemetry Leech: antennas off and ElectricCharge drained on craft within empRadius, with arcs.
         [KSPField] public float empRadius = 0;
         [KSPField] public float antennaSeconds = 30;
@@ -77,6 +82,10 @@ namespace FarFutureWeaponry
                     return $"<b>Gravity well:</b> pulls everything within {radius:0} m at {accelG:0.#} g for {duration:0.#} s, then a {blastTnt:0} kg TNT blast.";
                 case FieldKind.Warp:
                     return $"<b>Black hole:</b> pulls everything within {radius:0} m at {accelG:0.#} g for {duration:0.#} s and destroys anything within {innerRadius:0} m.";
+                case FieldKind.Rinse:
+                    return $"<b>Blue Rinse:</b> every Kerbal within {radius:0} m dies. No other damage.";
+                case FieldKind.Seismic:
+                    return $"<b>Seismic charge:</b> a flat ring of energy spreads out to {radius:0} m, doing {ringDamage:0} damage to everything it passes through, and nothing above or below it.";
                 case FieldKind.Tachyon:
                     return $"<b>Tachyon field:</b> time stops for every craft within {radius:0} m for {freezeSeconds:0} s (5 to 60, set in the part's window), then gives each its speed back. Craft with an active Tachyon-be-gone are immune.";
             }
@@ -86,7 +95,8 @@ namespace FarFutureWeaponry
         FieldSpec Spec() => new FieldSpec
         {
             Kind = FieldSpec.Parse(effect), Radius = radius, InnerRadius = innerRadius, AccelG = accelG,
-            Duration = FieldSpec.Parse(effect) == FieldKind.Tachyon ? Mathf.Clamp(freezeSeconds, 5, 60) : duration, BlastTntKg = blastTnt
+            Duration = FieldSpec.Parse(effect) == FieldKind.Tachyon ? Mathf.Clamp(freezeSeconds, 5, 60) : duration, BlastTntKg = blastTnt,
+            RingSpeed = ringSpeed
         };
 
         void OnPartDie(Part p)

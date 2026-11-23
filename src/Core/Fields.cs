@@ -2,7 +2,7 @@ using System;
 
 namespace FarFutureWeaponry.Core
 {
-    public enum FieldKind { None, Gravity, Warp, Tachyon }
+    public enum FieldKind { None, Gravity, Warp, Tachyon, Rinse, Seismic }
 
     /// <summary>The settings of a bomb's field (ModuleFFWBomb fields).</summary>
     public sealed class FieldSpec
@@ -13,6 +13,7 @@ namespace FarFutureWeaponry.Core
         public double AccelG = 6;          // pull towards the centre, in g (9.81 m/s²), the same at any distance inside
         public double Duration = 3;        // s the field lasts
         public double BlastTntKg;          // kg TNT set off at the centre when the field ends (gravity bomb)
+        public double RingSpeed = 400;     // m/s the seismic ring spreads at
 
         public static FieldKind Parse(string s)
         {
@@ -21,6 +22,8 @@ namespace FarFutureWeaponry.Core
                 case "gravity": return FieldKind.Gravity;
                 case "warp": return FieldKind.Warp;
                 case "tachyon": return FieldKind.Tachyon;
+                case "rinse": return FieldKind.Rinse;
+                case "seismic": return FieldKind.Seismic;
                 default: return FieldKind.None;
             }
         }
@@ -39,6 +42,8 @@ namespace FarFutureWeaponry.Core
         public double Speed;                           // tachyon field: how fast time runs inside (1 normal, 0 stopped)
         public bool Slowed;                            // tachyon field: craft caught are still held (Speed < 1)
         public double Tau;                             // tachyon field: the bomb's own clock (its flash and pieces): forward, held, back
+        public double RingRadius2, RingAlpha2;         // the seismic ring: radius (m) and brightness 0-1
+        public bool Killing;                           // the Blue Rinse sphere still spreading (it kills the crews it reaches)
         public bool Over;                              // nothing left to draw or do
     }
 
@@ -57,6 +62,8 @@ namespace FarFutureWeaponry.Core
         /// <summary>When everything about the field is over (s after detonation).</summary>
         public static double End(FieldSpec s) =>
             s.Kind == FieldKind.Tachyon ? s.Duration + SpeedUp + 0.2 :
+            s.Kind == FieldKind.Rinse ? RinseSpread + RinseFade :
+            s.Kind == FieldKind.Seismic ? s.Radius / Math.Max(1, s.RingSpeed) + 0.1 :
             s.Duration + (s.Kind == FieldKind.Gravity ? PulseTime + 0.2 : FlashTail);
 
         // ---- The tachyon field's time ----
@@ -64,6 +71,9 @@ namespace FarFutureWeaponry.Core
         // duration (both smooth). The bomb's own clock runs at that speed, so its flash and pieces slow to a standstill,
         // hang there, and play back to the start as time returns.
         public const double SlowDown = 1.2, SpeedUp = 2.0;
+
+        // The Blue Rinse: the sphere spreads over RinseSpread seconds (fast at first, easing out), then fades.
+        public const double RinseSpread = 2.5, RinseFade = 1.0;
 
         /// <summary>How fast time runs inside the field at t (1 normal, 0 stopped).</summary>
         public static double TimeSpeed(double t, double duration)
@@ -134,6 +144,26 @@ namespace FarFutureWeaponry.Core
                     l.Flash = 3 * Math.Exp(-t / 0.25) + (t >= D ? 2 * Math.Exp(-(t - D) / 0.2) : 0);
                     l.FlashRadius = t >= D ? 0.6 * R : 0.4 * R;
                     l.Pulling = on; l.Destroying = on;
+                    break;
+                }
+                case FieldKind.Rinse:
+                {
+                    // An electric-blue sphere spreading from the centre out to the full radius, a flash as it goes off, then
+                    // fading; every Kerbal it reaches dies.
+                    double x = Clamp01(t / RinseSpread);
+                    l.SphereRadius = R * (1 - (1 - x) * (1 - x) * (1 - x));
+                    l.SphereAlpha = t < RinseSpread ? 0.9 : 0.9 * (1 - Clamp01((t - RinseSpread) / RinseFade));
+                    l.Killing = t <= RinseSpread;
+                    l.Flash = 2.5 * Math.Exp(-t / 0.2); l.FlashRadius = 0.1 * R;
+                    break;
+                }
+                case FieldKind.Seismic:
+                {
+                    // A flat ring of electric-blue energy racing out to the full radius, fading over the last fifth.
+                    double life = R / Math.Max(1, s.RingSpeed);
+                    l.RingRadius2 = Math.Min(R, s.RingSpeed * t);
+                    l.RingAlpha2 = t <= life ? 1 - Smooth(0.8 * life, life, t) : 0;
+                    l.Flash = 2.8 * Math.Exp(-t / 0.15); l.FlashRadius = 40;
                     break;
                 }
                 case FieldKind.Tachyon:

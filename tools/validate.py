@@ -18,7 +18,7 @@ NAME = 'FarFutureWeaponry'
 ASSET_EXT = ('.mu', '.png', '.dds', '.tga', '.ogg', '.wav', '.mbm')
 KNOWN_MODULES = {'ModuleWeapon', 'ModuleTurret', 'ModulePartVariants', 'ModuleCASE', 'MissileLauncher', 'BDExplosivePart', 'BDModuleNuke', 'ModuleCloakingDevice', 'CMDropper'}
 LOOKS = {'', 'none', 'antimatter', 'mushroom'}
-EFFECTS = {'none', 'gravity', 'warp', 'tachyon'}
+EFFECTS = {'none', 'gravity', 'warp', 'tachyon', 'rinse', 'seismic'}
 RESOURCES = {'ElectricCharge', 'Antimatter', 'CMFlare', 'CMChaff'}
 
 problems = []

@@ -59,6 +59,17 @@ Windows: `py tools\make.py --deploy`. Single steps: `python3 tools/build.py`;
   relative to the surface (Krakensbane and planet rotation accounted for). Lenses and flashes go through
   `EffectsApi.LensCore`/`Glow` each frame. Sounds are made when a bomb loads (`FieldManager.Prepare`), and lights are
   only used without VFX Reconfigured: wide lights caused hitches at detonation.
+- **Blue Rinse and seismic charge** are fields too: the rinse kills the crews (`KillCrew`) of craft whose nearest
+  part its sphere reaches; the seismic ring is a mesh in the plane at right angles to local up, rebuilt each frame,
+  and each physics step it damages (`PartExtensions.AddDamage`) the parts between its last and current radius within
+  `ringThickness` of the plane, once each.
+- **Tracking sensors** (`ModuleFFWSensor`): `ModuleFFWSeeker` locks only if the firing craft has a powered sensor of
+  its kind (`ModuleFFWSensor.Has`). A sensor's `pivotTransform` yaws round its parent's up axis to face the target.
+- **Cloak transition**: the cloak overlay's GrabPass sees the part behind it, so the reveal can't be per pixel. Each
+  part's renderers are switched off when the ripple reaches it, and `CloakOverlay` (`_CloakState.z`) draws only the
+  cloaked side of the ripple band.
+- **Interface glitch**: `ScreenGlitch` jolts the direct children of `UIMasterController.mainCanvas`/`appCanvas`
+  (position, scale, alpha via an added `CanvasGroup`) and puts them back afterwards.
 - **Antimatter** uses Far Future Technologies' units (36 GJ/unit) and the same containment model (a flat EC/s cost;
   without it, annihilation heats the part). `Resources.cfg` defines Antimatter only when the Community Resource Pack
   doesn't.
