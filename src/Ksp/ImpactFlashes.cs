@@ -20,6 +20,7 @@ namespace FarFutureWeaponry
             public string Explosion;
             public Color Color;
             public float Size = 6, Duration = 0.5f, LightRange = 40, LightIntensity = 4;
+            public float SlowPerHit, Rust, Damage;   // tachyon hits: on the part the shot hit (TachyonHit)
             public readonly Dictionary<GameObject, float> Seen = new Dictionary<GameObject, float>();
         }
 
@@ -51,6 +52,9 @@ namespace FarFutureWeaponry
                 n.TryGetValue("duration", ref d.Duration);
                 n.TryGetValue("lightRange", ref d.LightRange);
                 n.TryGetValue("lightIntensity", ref d.LightIntensity);
+                n.TryGetValue("slowPerHit", ref d.SlowPerHit);
+                n.TryGetValue("rust", ref d.Rust);
+                n.TryGetValue("damage", ref d.Damage);
                 defs.Add(d);
             }
             if (defs.Count > 0 && !Bda.ExplosionsReadable)
@@ -76,7 +80,9 @@ namespace FarFutureWeaponry
                     if (!Bda.ReadExplosion(go, out float start, out Vector3 pos)) continue;
                     if (d.Seen.TryGetValue(go, out float last) && last == start) continue;
                     d.Seen[go] = start;
-                    if (now - start < d.Duration * 0.5f) Spawn(d, pos, now);
+                    if (now - start >= d.Duration * 0.5f) continue;
+                    if (d.Size > 0) Spawn(d, pos, now);
+                    if (d.SlowPerHit > 0 || d.Rust > 0 || d.Damage > 0) TachyonHit.Apply(Bda.ExplosionHitPart(go), d.SlowPerHit, d.Rust, d.Damage);
                 }
             }
             Camera cam = Visuals.Camera;

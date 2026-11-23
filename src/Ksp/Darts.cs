@@ -1,0 +1,142 @@
+using System.Collections.Generic;
+using FarFutureWeaponry.Core;
+using UnityEngine;
+
+namespace FarFutureWeaponry
+{
+    /// <summary>
+    /// The Kessler Swarm Pod: a BDArmory anti-radiation missile that, within <see cref="splitDistance"/> of its target,
+    /// splits with a small pop into a cone of unguided tungsten darts at hypervelocity. Each dart does little on its own
+    /// but shreds what's fragile (solar panels, radiators, wings and control surfaces, exposed engines).
+    /// </summary>
+    public class ModuleFFWDarts : PartModule
+    {
+        [KSPField] public float splitDistance = 1500;
+        [KSPField] public int darts = 20;
+        [KSPField] public float dartSpeed = 1800;     // m/s added to the missile's own speed
+        [KSPField] public float spread = 2.5f;        // cone half-angle (degrees)
+        [KSPField] public float damage = 80;          // per dart
+        [KSPField] public float fragileMultiplier = 5;
+        [KSPField] public string trailColor = "255, 150, 50, 255";
+
+        PartModule missile;
+        bool split;
+
+        public override void OnStart(StartState state)
+        {
+            if (!HighLogic.LoadedSceneIsFlight) return;
+            Bda.Init();
+            missile = Bda.FindMissile(part);
+        }
+
+        public override string GetInfo() =>
+            $"<b>Swarm:</b> splits {splitDistance:0} m from its target into {darts} unguided tungsten darts ({damage:0} damage each, x{fragileMultiplier:0} against solar panels, radiators, wings and exposed engines).";
+
+        public void FixedUpdate()
+        {
+            if (split || !HighLogic.LoadedSceneIsFlight || missile == null || !Bda.MissileFired(missile)) return;
+            Vector3 target = Bda.MissileTargetPosition(missile);
+            if (target == Vector3.zero) return;
+            Vector3 me = part.transform.position;
+            if ((target - me).sqrMagnitude > splitDistance * splitDistance) return;
+            split = true;
+            Vector3 aim = (target - me).normalized;
+            Color c = Rgba.Parse(trailColor, new Rgba(1, 0.6f, 0.2f, 1)).ToColor();
+            DartManager.Instance?.Launch(me, vessel.srf_velocity, aim, darts, dartSpeed, spread, damage, fragileMultiplier, c, vessel);
+            Log.Info($"{part.partInfo.title}: split into {darts} darts {Vector3.Distance(target, me):0} m from its target.");
+            Bda.DetonateMissile(missile);   // (its small charge: the pop)
+        }
+    }
+
+    /// <summary>Flies the darts: straight lines under gravity, raycast each step, BDArmory damage on what they hit.</summary>
+    [KSPAddon(KSPAddon.Startup.Flight, false)]
+    public class DartManager : MonoBehaviour
+    {
+        public static DartManager Instance { get; private set; }
+
+        sealed class Dart
+        {
+            public Vector3d Pos;       // main body frame
+            public Vector3d Vel;       // main body frame (over the surface)
+            public float Born, Damage, Fragile;
+            public RibbonTrail Trail;
+            public Vessel Source;
+        }
+
+        const float Life = 6;
+        readonly List<Dart> darts = new List<Dart>();
+        int mask;
+
+        void Awake() { Instance = this; }
+        void Start() { mask = LayerMask.GetMask("Default", "Local Scenery", "TerrainColliders", "EVA", "WheelCollidersIgnore", "WheelColliders"); }
+
+        internal void Launch(Vector3 from, Vector3 surfaceVelocity, Vector3 aim, int n, float speed, float spreadDeg, float damage, float fragile, Color colour, Vessel source)
+        {
+            double[] dirs = Darts.Cone(n, spreadDeg);
+            Quaternion rot = Quaternion.LookRotation(aim);
+            Transform frame = FlightGlobals.currentMainBody != null ? FlightGlobals.currentMainBody.transform : null;
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 dir = rot * new Vector3((float)dirs[i * 3], (float)dirs[i * 3 + 1], (float)dirs[i * 3 + 2]);
+                Vector3 v = surfaceVelocity + dir * speed;
+                var d = new Dart
+                {
+                    Pos = Visuals.ToFrame(from + dir * 2),
+                    Vel = frame != null ? (Vector3d)frame.InverseTransformDirection(v) : (Vector3d)v,
+                    Born = Time.time, Damage = damage, Fragile = fragile, Source = source,
+                    Trail = RibbonTrail.Create(null, colour, 0.25f, 0.35f, 6)
+                };
+                d.Trail.Add(from);
+                darts.Add(d);
+            }
+            FieldManager.Instance?.SmallFlash(from, colour, 6, 0.25f);
+        }
+
+        void FixedUpdate()
+        {
+            if (darts.Count == 0) return;
+            float dt = Time.fixedDeltaTime, now = Time.time;
+            Transform frame = FlightGlobals.currentMainBody != null ? FlightGlobals.currentMainBody.transform : null;
+            for (int i = darts.Count - 1; i >= 0; i--)
+            {
+                Dart d = darts[i];
+                Vector3 a = Visuals.FromFrame(d.Pos);
+                Vector3 g = FlightGlobals.getGeeForceAtPosition(a);
+                Vector3d gFrame = frame != null ? (Vector3d)frame.InverseTransformDirection(g) : (Vector3d)g;
+                d.Vel += gFrame * dt;
+                Vector3d next = d.Pos + d.Vel * dt;
+                Vector3 b = Visuals.FromFrame(next);
+                bool done = now - d.Born > Life;
+                if (Physics.Raycast(a, b - a, out RaycastHit hit, (b - a).magnitude, mask, QueryTriggerInteraction.Ignore))
+                {
+                    Part p = hit.collider.GetComponentInParent<Part>();
+                    if (p == null || p.vessel != d.Source)
+                    {
+                        if (p != null) Bda.AddDamage(p, (float)Darts.Damage(d.Damage, Fragile(p), d.Fragile));
+                        FieldManager.Instance?.SmallFlash(hit.point, new Color(1, 0.7f, 0.35f), 2.5f, 0.15f);
+                        b = hit.point; done = true;
+                    }
+                }
+                d.Pos = Visuals.ToFrame(b);
+                d.Trail.Add(b);
+                if (done) { d.Trail.Detach(); darts.RemoveAt(i); }
+            }
+        }
+
+        /// <summary>What darts shred: solar panels, radiators, wings and control surfaces, engines.</summary>
+        static bool Fragile(Part p)
+        {
+            foreach (PartModule m in p.Modules)
+                if (m is ModuleDeployableSolarPanel || m is ModuleDeployableRadiator || m is ModuleActiveRadiator ||
+                    m is ModuleLiftingSurface || m is ModuleEngines) return true;
+            return false;
+        }
+
+        void OnDestroy()
+        {
+            foreach (Dart d in darts) if (d.Trail != null) d.Trail.Detach();
+            darts.Clear();
+            if (Instance == this) Instance = null;
+        }
+    }
+}

@@ -21,6 +21,7 @@ namespace FarFutureWeaponry
         static IDictionary explosionPools;
         static Type explosionFxType;
         static PropertyInfo explosionStartTime, explosionPosition;
+        static FieldInfo explosionHitPart;                     // ExplosionFx.projectileHitPart (the part a laser pulse or shell hit)
         static FieldInfo poolList;                       // BDArmory.Utils.ObjectPool.pool (List<GameObject>)
 
         // Bullets: BDArmory.Bullets.PooledBulletManager.Instance.activeBullets (HashSet<PooledBullet>).
@@ -31,7 +32,12 @@ namespace FarFutureWeaponry
 
         // Weapons: BDArmory.Weapons.ModuleWeapon.isCharging (private bool), .ChargeTime.
         public static Type ModuleWeaponType { get; private set; }
-        static FieldInfo weaponIsCharging, weaponChargeTime, weaponAmmoName, weaponAmmoPerShot, weaponFireTransforms;
+        static FieldInfo weaponIsCharging, weaponChargeTime, weaponAmmoName, weaponAmmoPerShot, weaponFireTransforms, weaponImpulse, weaponLasers;
+        static PropertyInfo explosionHitPartProp;
+        static Type missileType, wmType, cloakType;
+        static PropertyInfo missileHasFired, missileTargetPosition, missileTargetVelocity, missileTargetAcquired, missileSourceVessel;
+        static MethodInfo missileDetonate, addDamage;
+        static FieldInfo wmCurrentTarget, cloakEnabled, cloakOptical;
 
         static readonly HashSet<string> warned = new HashSet<string>();
 
@@ -55,6 +61,29 @@ namespace FarFutureWeaponry
             explosionPools = explosionFxType?.GetField("explosionFXPools", Any)?.GetValue(null) as IDictionary;
             explosionStartTime = explosionFxType?.GetProperty("StartTime", Any);
             explosionPosition = explosionFxType?.GetProperty("Position", Any);
+            explosionHitPart = explosionFxType?.GetField("projectileHitPart", Any);
+            if (explosionHitPart == null)
+            {
+                PropertyInfo hp = explosionFxType?.GetProperty("projectileHitPart", Any);
+                if (hp != null) explosionHitPartProp = hp;
+            }
+
+            Type missile = bda.GetType("BDArmory.Weapons.Missiles.MissileBase");
+            missileType = missile;
+            missileHasFired = missile?.GetProperty("HasFired", Any);
+            missileTargetPosition = missile?.GetProperty("TargetPosition", Any);
+            missileTargetVelocity = missile?.GetProperty("TargetVelocity", Any);
+            missileTargetAcquired = missile?.GetProperty("TargetAcquired", Any);
+            missileSourceVessel = missile?.GetProperty("SourceVessel", Any);
+            missileDetonate = missile?.GetMethod("Detonate", BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
+            Type wm = bda.GetType("BDArmory.Control.MissileFire");
+            wmType = wm;
+            wmCurrentTarget = wm?.GetField("currentTarget", Any);
+            Type ext = bda.GetType("BDArmory.Extensions.PartExtensions");
+            addDamage = ext?.GetMethod("AddDamage", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(Part), typeof(float) }, null);
+            cloakType = bda.GetType("BDArmory.CounterMeasure.ModuleCloakingDevice");
+            cloakEnabled = cloakType?.GetField("cloakEnabled", Any);
+            cloakOptical = cloakType?.GetField("OpticalCloaking", Any);
             poolList = bda.GetType("BDArmory.Utils.ObjectPool")?.GetField("pool", Any);
 
             Type manager = bda.GetType("BDArmory.Bullets.PooledBulletManager");
@@ -73,6 +102,8 @@ namespace FarFutureWeaponry
             weaponAmmoName = ModuleWeaponType?.GetField("ammoName", Any);
             weaponAmmoPerShot = ModuleWeaponType?.GetField("requestResourceAmount", Any);
             weaponFireTransforms = ModuleWeaponType?.GetField("fireTransforms", Any);
+            weaponImpulse = ModuleWeaponType?.GetField("Impulse", Any);
+            weaponLasers = ModuleWeaponType?.GetField("laserRenderers", Any);
 
             Log.Info($"BDArmory {bda.GetName().Version} found ({(Lite ? "BDArmory Lite" : "BDArmory")}). " +
                      $"Explosions: {Ok(ExplosionsReadable)}, bullets: {Ok(BulletsReadable)}, weapon charge: {Ok(weaponIsCharging != null && weaponChargeTime != null)}, " +
@@ -162,6 +193,85 @@ namespace FarFutureWeaponry
                     if (go.GetComponent(type) is Behaviour b && b != null) into.Add((b, start));
                 }
             }
+        }
+
+        /// <summary>The part an explosion's projectile hit (a laser pulse, a shell), or null.</summary>
+        public static Part ExplosionHitPart(GameObject go)
+        {
+            if (go == null || explosionFxType == null) return null;
+            Component fx = go.GetComponent(explosionFxType);
+            if (fx == null) return null;
+            if (explosionHitPart != null) return explosionHitPart.GetValue(fx) as Part;
+            return explosionHitPartProp?.GetValue(fx, null) as Part;
+        }
+
+        // ---- Damage ----
+
+        /// <summary>Structural damage through BDArmory's hitpoints (PartExtensions.AddDamage).</summary>
+        public static void AddDamage(Part p, float damage)
+        {
+            if (p == null || addDamage == null || damage <= 0) return;
+            try { addDamage.Invoke(null, new object[] { p, damage }); }
+            catch (Exception e) { WarnOnce("damage", "BDArmory damage failed: " + (e.InnerException ?? e).Message); }
+        }
+
+        // ---- Missiles ----
+
+        public static PartModule FindMissile(Part part)
+        {
+            if (missileType == null || part == null) return null;
+            for (int i = 0; i < part.Modules.Count; i++)
+                if (missileType.IsInstanceOfType(part.Modules[i])) return part.Modules[i];
+            return null;
+        }
+
+        public static bool MissileFired(PartModule missile) => missile != null && missileHasFired != null && (bool)missileHasFired.GetValue(missile, null);
+
+        public static Vessel MissileSource(PartModule missile) => missile != null ? missileSourceVessel?.GetValue(missile, null) as Vessel : null;
+
+        public static Vector3 MissileTargetPosition(PartModule missile) =>
+            missile != null && missileTargetPosition != null ? (Vector3)missileTargetPosition.GetValue(missile, null) : Vector3.zero;
+
+        /// <summary>Steer a missile (targetingType none: BDArmory leaves these alone) at a point.</summary>
+        public static void SteerMissile(PartModule missile, Vector3 position, Vector3 velocity, bool acquired)
+        {
+            if (missile == null || missileTargetPosition == null) return;
+            missileTargetPosition.SetValue(missile, position, null);
+            missileTargetVelocity?.SetValue(missile, velocity, null);
+            missileTargetAcquired?.SetValue(missile, acquired, null);
+        }
+
+        public static void DetonateMissile(PartModule missile)
+        {
+            if (missile == null || missileDetonate == null) return;
+            try { missileDetonate.Invoke(missile, null); }
+            catch (Exception e) { WarnOnce("detonate", "BDArmory missile detonation failed: " + (e.InnerException ?? e).Message); }
+        }
+
+        /// <summary>The target the craft's weapon manager is engaging (guard mode), or null.</summary>
+        public static Vessel GuardTarget(Vessel v)
+        {
+            if (v == null || wmType == null || wmCurrentTarget == null) return null;
+            foreach (Part p in v.parts)
+                foreach (PartModule m in p.Modules)
+                {
+                    if (!wmType.IsInstanceOfType(m)) continue;
+                    object info = wmCurrentTarget.GetValue(m);
+                    if (info == null || (info is UnityEngine.Object o && o == null)) continue;
+                    if (info.GetType().GetProperty("Vessel")?.GetValue(info, null) is Vessel t && t != null) return t;
+                }
+            return null;
+        }
+
+        /// <summary>Whether a BDArmory optical cloak is active on the craft.</summary>
+        public static bool Cloaked(Vessel v)
+        {
+            if (v == null || cloakType == null || cloakEnabled == null) return false;
+            foreach (Part p in v.parts)
+                foreach (PartModule m in p.Modules)
+                    if (cloakType.IsInstanceOfType(m) && (bool)cloakEnabled.GetValue(m) && (cloakOptical == null || (bool)cloakOptical.GetValue(m)))
+                        return true;
+            return false;
         }
 
         // ---- Bullets ----
@@ -307,6 +417,23 @@ namespace FarFutureWeaponry
         }
 
         // ---- Weapons ----
+
+        /// <summary>A weapon's impulse (BDArmory impulse lasers push by it; negative pulls).</summary>
+        public static float GetImpulse(PartModule weapon) => weapon != null && weaponImpulse != null ? (float)weaponImpulse.GetValue(weapon) : 0;
+        public static void SetImpulse(PartModule weapon, float value) { if (weapon != null) weaponImpulse?.SetValue(weapon, value); }
+
+        /// <summary>The ends of a laser's beam while it's drawn (the first beam), or false.</summary>
+        public static bool LaserBeam(PartModule weapon, out Vector3 from, out Vector3 to)
+        {
+            from = to = default;
+            if (weapon == null || weaponLasers == null) return false;
+            if (!(weaponLasers.GetValue(weapon) is LineRenderer[] lrs) || lrs.Length == 0) return false;
+            LineRenderer lr = lrs[0];
+            if (lr == null || !lr.enabled || lr.positionCount < 2) return false;
+            from = lr.GetPosition(0); to = lr.GetPosition(lr.positionCount - 1);
+            if (!lr.useWorldSpace) { from = lr.transform.TransformPoint(from); to = lr.transform.TransformPoint(to); }
+            return true;
+        }
 
         public static PartModule FindWeapon(Part part)
         {

@@ -95,6 +95,15 @@ namespace FarFutureWeaponry
 
         readonly List<Field> fields = new List<Field>();
         readonly List<Flash> flashes = new List<Flash>();
+
+        sealed class Ripple { public Vector3d Where; public float Start, Seconds, Radius; }
+        readonly List<Ripple> ripples = new List<Ripple>();
+
+        sealed class Wave { public Vector3d Where; public float Start, Seconds, Radius; public Color Colour; }
+        readonly List<Wave> waves = new List<Wave>();
+
+        sealed class Arcs { public Vector3d Where; public float Start, Seconds, Radius; public LineRenderer[] Lines; public Material Mat; }
+        readonly List<Arcs> arcs = new List<Arcs>();
         readonly List<ShatterFx> duds = new List<ShatterFx>();   // tachyon bombs back together, lying where they fell
         readonly List<(Behaviour fx, PropertyInfo start)> live = new List<(Behaviour, PropertyInfo)>();
         readonly List<Part> doomed = new List<Part>();
@@ -117,9 +126,31 @@ namespace FarFutureWeaponry
 
         // ---- Starting ----
 
+        // ---- Small effects other modules ask for ----
+
+        /// <summary>A short flash (VFX Reconfigured's glow; a small light without it).</summary>
+        internal void SmallFlash(Vector3 at, Color c, float radius, float seconds)
+        {
+            flashes.Add(new Flash
+            {
+                Where = Visuals.ToFrame(at), Start = Time.time, Seconds = Mathf.Max(0.05f, seconds), Radius = radius,
+                Edge = c, Core = Color.Lerp(c, Color.white, 0.7f), Light = Vfxr.Present ? null : MakeLight(at, c)
+            });
+        }
+
+        /// <summary>The phase-shift missile passing through a hull: a cyan flash and a ripple of bent space.</summary>
+        internal void PhaseFlash(Vector3 at, Color c)
+        {
+            SmallFlash(at, c, 12, 0.35f);
+            ripples.Add(new Ripple { Where = Visuals.ToFrame(at), Start = Time.time, Seconds = 0.6f, Radius = 30 });
+        }
+
+        // ---- Warheads ----
+
         internal void Detonation(ModuleFFWBomb bomb, FieldSpec spec, Vector3 where, string source)
         {
             float now = Time.time;
+            WarheadEffects(bomb, where);
             if (bomb.flashRadius > 0 && !string.IsNullOrEmpty(bomb.flashColor))
             {
                 Color c = Rgba.Parse(bomb.flashColor, new Rgba(1, 1, 1, 1)).ToColor();
@@ -168,6 +199,122 @@ namespace FarFutureWeaponry
             fields.Add(f);
             Log.Info($"{spec.Kind} field from {f.Weapon}: radius {spec.Radius:0} m, {spec.Duration:0.#} s" +
                      (Vfxr.Present ? "" : " (no VFX Reconfigured EffectsApi: no lens or flash)"));
+        }
+
+        /// <summary>
+        /// What a warhead does besides its blast (ModuleFFWBomb):
+        /// - Telemetry Leech: craft within empRadius lose their antennas for antennaSeconds and ecDrain ElectricCharge,
+        ///   with an electric arc burst;
+        /// - Kraken: every Kerbal aboard a craft within killCrewRadius dies, as a wave of red light passes over it;
+        /// - Chronos Rust-Dart: parts within hitRadius rust (rustAmount) and their craft slow (slowPerHit).
+        /// </summary>
+        void WarheadEffects(ModuleFFWBomb b, Vector3 at)
+        {
+            var near = new List<Vessel>();
+            float reach = Mathf.Max(b.empRadius, Mathf.Max(b.killCrewRadius, b.hitRadius));
+            if (reach > 0)
+                foreach (Vessel v in FlightGlobals.VesselsLoaded)
+                    if (v != null && v != b.vessel && ClosestPart(v, at) <= reach) near.Add(v);
+
+            if (b.empRadius > 0)
+            {
+                foreach (Vessel v in near)
+                {
+                    if (ClosestPart(v, at) > b.empRadius) continue;
+                    if (b.antennaSeconds > 0) Targets.Blackout(v, b.antennaSeconds);
+                    if (b.ecDrain > 0)
+                    {
+                        double drained = 0;
+                        foreach (Part p in v.parts)
+                        {
+                            PartResource r = p.Resources.Get("ElectricCharge");
+                            if (r == null || drained >= b.ecDrain) continue;
+                            double take = System.Math.Min(r.amount, b.ecDrain - drained);
+                            r.amount -= take; drained += take;
+                        }
+                        Log.Info($"{b.part.partInfo.title}: drained {drained:0} EC from {v.vesselName}.");
+                    }
+                }
+                Color c = Rgba.Parse(b.arcColor, new Rgba(0.4f, 0.9f, 1, 1)).ToColor();
+                SmallFlash(at, c, b.empRadius * 0.6f, 0.4f);
+                AddArcs(at, b.empRadius, 0.7f, c);
+            }
+
+            if (b.killCrewRadius > 0)
+            {
+                foreach (Vessel v in near)
+                {
+                    if (ClosestPart(v, at) > b.killCrewRadius) continue;
+                    int killed = KillCrew(v);
+                    if (killed > 0) Log.Info($"{b.part.partInfo.title}: {killed} Kerbal(s) aboard {v.vesselName} killed.");
+                    float size = Mathf.Max(10, v.vesselSize.magnitude);
+                    waves.Add(new Wave { Where = Visuals.ToFrame(v.CoM), Start = Time.time, Seconds = 0.9f, Radius = size * 1.2f,
+                                         Colour = Rgba.Parse(b.waveColor, new Rgba(1, 0.1f, 0.1f, 1)).ToColor() });
+                }
+            }
+
+            if (b.hitRadius > 0 && (b.slowPerHit > 0 || b.rustAmount > 0))
+                foreach (Vessel v in near)
+                {
+                    Part hit = null; float best = float.MaxValue;
+                    foreach (Part p in v.parts)
+                    {
+                        if (p == null) continue;
+                        float d = (p.transform.position - at).sqrMagnitude;
+                        if (d < best) { best = d; hit = p; }
+                    }
+                    if (hit != null && best <= b.hitRadius * b.hitRadius) TachyonHit.Apply(hit, b.slowPerHit, b.rustAmount, 0);
+                }
+        }
+
+        static float ClosestPart(Vessel v, Vector3 at)
+        {
+            float best = float.MaxValue;
+            foreach (Part p in v.parts) if (p != null) best = Mathf.Min(best, Vector3.Distance(p.transform.position, at));
+            return best;
+        }
+
+        static int KillCrew(Vessel v)
+        {
+            int killed = 0;
+            if (v.isEVA)
+            {
+                if (v.rootPart != null) { v.rootPart.explode(); killed = 1; }
+                return killed;
+            }
+            foreach (Part p in v.parts)
+            {
+                if (p == null) continue;
+                foreach (ProtoCrewMember c in new List<ProtoCrewMember>(p.protoModuleCrew))
+                {
+                    p.RemoveCrewmember(c);
+                    c.Die();
+                    killed++;
+                }
+            }
+            if (killed > 0)
+            {
+                v.CrewListSetDirty();
+                GameEvents.onVesselCrewWasModified.Fire(v);
+            }
+            return killed;
+        }
+
+        void AddArcs(Vector3 at, float radius, float seconds, Color c)
+        {
+            var a = new Arcs { Where = Visuals.ToFrame(at), Start = Time.time, Seconds = seconds, Radius = radius, Lines = new LineRenderer[7] };
+            a.Mat = Visuals.Additive(Visuals.Ribbon, new Color(c.r, c.g, c.b, 0.5f));
+            for (int i = 0; i < a.Lines.Length; i++)
+            {
+                var go = new GameObject("FFW arc");
+                var lr = go.AddComponent<LineRenderer>();
+                lr.sharedMaterial = a.Mat; lr.positionCount = 10; lr.useWorldSpace = true;
+                lr.widthMultiplier = Mathf.Max(0.15f, radius * 0.02f);
+                lr.startColor = lr.endColor = Color.white;
+                lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; lr.receiveShadows = false;
+                a.Lines[i] = lr;
+            }
+            arcs.Add(a);
         }
 
         static Light MakeLight(Vector3 where, Color c)
@@ -462,6 +609,47 @@ namespace FarFutureWeaponry
                 Vfxr.Glow(at, fl.Radius, p, 0.2f, fl.Edge, fl.Core);
                 if (fl.Light != null) { fl.Light.transform.position = at; fl.Light.intensity = Mathf.Min(8, p * 3); }
             }
+            Targets.Tick();
+            for (int i = ripples.Count - 1; i >= 0; i--)
+            {
+                Ripple r = ripples[i];
+                float x = (now - r.Start) / r.Seconds;
+                if (x >= 1) { ripples.RemoveAt(i); continue; }
+                Vfxr.LensCore(Visuals.FromFrame(r.Where), r.Radius, 0, 0, r.Radius * (0.2f + 1.3f * x), 1.2f * (1 - x));
+            }
+            for (int i = waves.Count - 1; i >= 0; i--)
+            {
+                Wave w = waves[i];
+                float x = (now - w.Start) / w.Seconds;
+                if (x >= 1) { waves.RemoveAt(i); continue; }
+                // A shell of red light sweeping out over the craft: a bright edge, a faint red inside it.
+                Vfxr.TintSphere(Visuals.FromFrame(w.Where), Mathf.Max(0.5f, w.Radius * x), new Color(1, 0.35f, 0.3f), 0.35f * (1 - x), w.Colour, 3 * (1 - x * x));
+            }
+            for (int i = arcs.Count - 1; i >= 0; i--)
+            {
+                Arcs a = arcs[i];
+                float x = (now - a.Start) / a.Seconds;
+                if (x >= 1)
+                {
+                    foreach (LineRenderer lr in a.Lines) if (lr != null) Destroy(lr.gameObject);
+                    Destroy(a.Mat); arcs.RemoveAt(i); continue;
+                }
+                Vector3 c = Visuals.FromFrame(a.Where);
+                foreach (LineRenderer lr in a.Lines)
+                {
+                    // Each arc a fresh jagged bolt every frame, flickering on and off.
+                    lr.enabled = Random.value < 0.75f;
+                    Vector3 end = c + Random.onUnitSphere * a.Radius * Random.Range(0.4f, 1f);
+                    for (int k = 0; k < lr.positionCount; k++)
+                    {
+                        float f = (float)k / (lr.positionCount - 1);
+                        Vector3 p = Vector3.Lerp(c, end, f);
+                        if (k > 0 && k < lr.positionCount - 1) p += Random.insideUnitSphere * a.Radius * 0.08f;
+                        lr.SetPosition(k, p);
+                    }
+                    lr.widthMultiplier = Mathf.Max(0.15f, a.Radius * 0.02f) * (1 - x);
+                }
+            }
             for (int i = duds.Count - 1; i >= 0; i--)
             {
                 duds[i].Tick(0, true, Time.deltaTime);
@@ -523,6 +711,9 @@ namespace FarFutureWeaponry
             flashes.Clear();
             foreach (ShatterFx d in duds) d.Clear();
             duds.Clear();
+            foreach (Arcs a in arcs) { foreach (LineRenderer lr in a.Lines) if (lr != null) Destroy(lr.gameObject); Destroy(a.Mat); }
+            arcs.Clear(); ripples.Clear(); waves.Clear();
+            Targets.Clear();
             if (Instance == this) Instance = null;
         }
     }

@@ -29,6 +29,7 @@ SOURCES = {
 # Tints (placeholder look): each weapon's paint pulled towards its beam colour.
 MAGENTA, BLUE, CYAN, VIOLET = '#c8408e', '#3f6fd8', '#3a9cff', '#7a46d8'
 GREEN, PERIWINKLE, NAVY = '#3fbf5a', '#6c6ee0', '#2a3a70'
+OLIVE, RED, ORANGE, TEAL, DARKVIOLET = '#7f8a3a', '#c83a3a', '#d8782a', '#2aa6b8', '#4a2a8a'
 
 # (source, path in source, path in assets/, tint or None)
 MANIFEST = [
@@ -87,11 +88,53 @@ MANIFEST = [
     # Tachyon-be-gone: BDArmory's ECM jammer pod.
     ('BDA', 'Parts/ecmJammer/model.mu', 'Parts/TachyonShield/model.mu', None),
     ('BDA', 'Parts/ecmJammer/tex_ecmj131.png', 'Parts/TachyonShield/tex_ecmj131.png', GREEN),
+    # Phase 3 missiles.
+    ('NKDR', 'parts/Tomohawk Conventional/model.mu', 'Parts/CruiseMissile/model.mu', None),
+    ('NKDR', 'parts/Tomohawk Conventional/Tomahawk.png', 'Parts/CruiseMissile/Tomahawk.png', OLIVE),
+    ('NKDR', 'parts/Tomohawk Conventional/smokepuff1.png', 'Parts/CruiseMissile/smokepuff1.png', None),
+    ('NKDR', 'parts/Tomohawk Conventional/srbsmoke.png', 'Parts/CruiseMissile/srbsmoke.png', None),
+    ('BDA', 'Parts/aim-120/model.mu', 'Parts/PhaseMissile/model.mu', None),
+    ('BDA', 'Parts/aim-120/texture.png', 'Parts/PhaseMissile/texture.png', CYAN),
+    ('BDA', 'Parts/aim-120/model.mu', 'Parts/KrakenMissile/model.mu', None),
+    ('BDA', 'Parts/aim-120/texture.png', 'Parts/KrakenMissile/texture.png', RED),
+    ('BDA', 'Parts/harm/model.mu', 'Parts/KesslerPod/model.mu', None),
+    ('BDA', 'Parts/harm/tex_harm.png', 'Parts/KesslerPod/tex_harm.png', ORANGE),
+    ('NKDR', 'parts/AGM 158/model.mu', 'Parts/LeechMissile/model.mu', None),
+    ('NKDR', 'parts/AGM 158/AGM 158 NEW.png', 'Parts/LeechMissile/AGM 158 NEW.png', TEAL),
+    ('NKDR', 'parts/AGM 158/smokepuff1.png', 'Parts/LeechMissile/smokepuff1.png', None),
+    ('NKDR', 'parts/AGM 158/srbsmoke.png', 'Parts/LeechMissile/srbsmoke.png', None),
+    ('BDA', 'Parts/sidewinder/model.mu', 'Parts/ChronosDart/model.mu', None),
+    ('BDA', 'Parts/sidewinder/texture.png', 'Parts/ChronosDart/texture.png', GREEN),
+    # Phase 3 guns.
+    ('BDAX', 'Parts/Lasers/PulseLaser/Model.mu', 'Parts/TachyonGun/Model.mu', None),
+    ('BDAX', 'Parts/Lasers/PulseLaser/pulselaser.png', 'Parts/TachyonGun/pulselaser.png', GREEN),
+    ('BDAX', 'Parts/Lasers/PulseLaser/pulseLaser_Emis.png', 'Parts/TachyonGun/pulseLaser_Emis.png', GREEN),
+    ('BDAX', 'Parts/Lasers/PulseLaser/laserflare.png', 'Parts/TachyonGun/laserflare.png', None),
+    ('BDAX', 'Parts/Lasers/PulseLaser/pulse.ogg', 'Parts/TachyonGun/pulse.ogg', None),
+    ('BDAX', 'Parts/Lasers/TorsionCannon/Model.mu', 'Parts/RepulsorBeam/Model.mu', None),
+    ('BDAX', 'Parts/Lasers/TorsionCannon/GravCannon.png', 'Parts/RepulsorBeam/GravCannon.png', DARKVIOLET),
+    ('BDAX', 'Parts/Lasers/TorsionCannon/GravCannon_n.png', 'Parts/RepulsorBeam/GravCannon_n.png', None),
+    ('BDAX', 'Parts/Lasers/TorsionCannon/hflare.png', 'Parts/RepulsorBeam/hflare.png', None),
+    ('BDAX', 'Parts/Lasers/TorsionCannon/Beam1.png', 'Parts/RepulsorBeam/Beam1.png', None),
+    ('BDAX', 'Parts/Lasers/TorsionCannon/Beam2.png', 'Parts/RepulsorBeam/Beam2.png', None),
+    ('BDAX', 'Parts/Lasers/TorsionCannon/Beam3.png', 'Parts/RepulsorBeam/Beam3.png', None),
+    ('BDAX', 'Parts/Lasers/TorsionCannon/Beam4.png', 'Parts/RepulsorBeam/Beam4.png', None),
+    ('BDAX', 'Parts/Lasers/TorsionCannon/TorsionFire.ogg', 'Parts/RepulsorBeam/fire.ogg', None),
+    ('BDAX', 'Parts/Lasers/TorsionCannon/BeamEnd.ogg', 'Parts/RepulsorBeam/end.ogg', None),
+    # Missile exhaust and engine sounds (BDArmory's: their paths differ between BDArmory and BDArmory Lite).
+    ('BDA', 'Models/exhaust/smallExhaust.mu', 'FX/Exhaust/smallExhaust.mu', None),
+    ('BDA', 'Models/exhaust/mediumExhaust.mu', 'FX/Exhaust/mediumExhaust.mu', None),
+    ('BDA', 'Models/exhaust/jetExhaustPrefab.mu', 'FX/Exhaust/jetExhaustPrefab.mu', None),
+    ('BDA', 'Models/exhaust/tex_smokeExhaust.dds', 'FX/Exhaust/tex_smokeExhaust.dds', None),
+    ('BDA', 'Models/exhaust/tex_sphere.dds', 'FX/Exhaust/tex_sphere.dds', None),
+    ('BDA', 'Sounds/rocketLoop.ogg', 'Sounds/rocketLoop.ogg', None),
+    ('BDA', 'Sounds/jet.ogg', 'Sounds/jet.ogg', None),
     # Impact explosions. Each weapon's explModelPath is its own copy, so its explosions land in their own BDArmory
     # pool, which the plugin watches to add the weapon's flash. The copies share one folder (and its textures).
     ('BDA', 'Models/explosion/explosion.mu', 'FX/Hits/antimatterHit.mu', None),
     ('BDA', 'Models/explosion/30mmExplosion.mu', 'FX/Hits/neutronHit.mu', None),
     ('BDA', 'Models/explosion/explosion.mu', 'FX/Hits/gravityBlast.mu', None),
+    ('BDA', 'Models/explosion/30mmExplosion.mu', 'FX/Hits/tachyonHit.mu', None),
     ('BDA', 'Models/explosion/ExpTex2.png', 'FX/Hits/ExpTex2.png', None),
     ('BDA', 'Models/explosion/ExpTex4.png', 'FX/Hits/ExpTex4.png', None),
     ('BDA', 'Models/explosion/smokeCm.png', 'FX/Hits/smokeCm.png', None),

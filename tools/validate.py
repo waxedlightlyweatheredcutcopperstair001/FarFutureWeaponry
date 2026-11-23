@@ -114,8 +114,9 @@ def main():
         rel = path.relative_to(pkg)
         for n in root.walk():
             for k, v in n.values:
-                if v.startswith(NAME + '/') and resolve(pkg, v) is None:
-                    problem(f'{rel}: {k} = {v}: no such file in the package')
+                for one in (x.strip() for x in v.split(';')):
+                    if one.startswith(NAME + '/') and resolve(pkg, one) is None:
+                        problem(f'{rel}: {k} = {one}: no such file in the package')
                 if k in ('explModelPath',):
                     expl_used.add(v)
         for part in (n for n in root.nodes if n.name == 'PART'):

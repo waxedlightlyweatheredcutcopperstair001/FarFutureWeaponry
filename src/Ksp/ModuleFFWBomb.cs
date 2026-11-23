@@ -31,6 +31,19 @@ namespace FarFutureWeaponry
         [KSPField] public float flashSeconds = 1.5f;
         [KSPField] public bool shatter = false;
 
+        // Telemetry Leech: antennas off and ElectricCharge drained on craft within empRadius, with arcs.
+        [KSPField] public float empRadius = 0;
+        [KSPField] public float antennaSeconds = 30;
+        [KSPField] public float ecDrain = 0;
+        [KSPField] public string arcColor = "100, 230, 255, 255";
+        // Kraken: every Kerbal aboard craft within killCrewRadius dies; a wave of red light passes over the craft.
+        [KSPField] public float killCrewRadius = 0;
+        [KSPField] public string waveColor = "255, 30, 30, 255";
+        // Chronos Rust-Dart: the nearest part within hitRadius rusts, and its craft slows.
+        [KSPField] public float hitRadius = 0;
+        [KSPField] public float slowPerHit = 0;
+        [KSPField] public float rustAmount = 0;
+
         // The tachyon field's length, set in the part's window (5 to 60 s).
         [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Freeze time", guiUnits = " s"),
          UI_FloatRange(minValue = 5, maxValue = 60, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]

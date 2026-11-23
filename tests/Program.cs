@@ -285,8 +285,71 @@ static class Program
         Check(Rms(sw, 1000, 8000) > Rms(sw, 28000, 35000), "sweep fades out");
     }
 
+    static void TrackingTests()
+    {
+        Check(Tracking.Parse("Optical") == TrackerKind.Optical && Tracking.Parse("commnet") == TrackerKind.CommNet &&
+              Tracking.Parse(" consciousness ") == TrackerKind.Consciousness && Tracking.Parse("radar") == TrackerKind.None, "trackers parse");
+        var near = new TargetSense { Distance = 3000, Connected = true, Crew = 2 };
+        Check(Tracking.CanSee(TrackerKind.Optical, near) && Tracking.CanSee(TrackerKind.CommNet, near) && Tracking.CanSee(TrackerKind.Consciousness, near), "a near crewed connected craft: all see it");
+        var far = near; far.Distance = 25000;
+        Check(!Tracking.CanSee(TrackerKind.Optical, far) && Tracking.CanSee(TrackerKind.CommNet, far) && !Tracking.CanSee(TrackerKind.Consciousness, far), "beyond 20 km: optical blind; consciousness only to 5 km");
+        var cloaked = near; cloaked.Cloaked = true;
+        Check(!Tracking.CanSee(TrackerKind.Optical, cloaked) && Tracking.CanSee(TrackerKind.Consciousness, cloaked), "a cloak fools optical only");
+        var drone = near; drone.Crew = 0;
+        Check(!Tracking.CanSee(TrackerKind.Consciousness, drone) && Tracking.CanSee(TrackerKind.Optical, drone), "no Kerbals: no consciousness to sense");
+        var offline = near; offline.Connected = false;
+        Check(!Tracking.CanSee(TrackerKind.CommNet, offline), "no link: CommNet can't follow");
+        var scrambled = near; scrambled.Scrambled = true;
+        Check(!Tracking.CanSee(TrackerKind.CommNet, scrambled), "scrambled: CommNet can't follow");
+        Check(!Tracking.CanSee(TrackerKind.None, near), "no tracker sees nothing");
+
+        // Lead: a target 1000 m ahead crossing at 100 m/s, missile at 500 m/s.
+        Tracking.Lead(0, 0, 1000, 100, 0, 0, 500, 60, out double ax, out double ay, out double az);
+        double t = az / 500 > 0 ? Math.Sqrt(ax * ax + az * az) / 500 : 0;
+        Check(ax > 150 && ax < 250 && Near(az, 1000, 1e-9) && Near(Math.Sqrt(ax * ax + az * az), 500 * ax / 100, 1e-6), "lead point meets the target (" + ax.ToString("0.0") + " m ahead)");
+        Tracking.Lead(0, 0, 1000, 0, 0, 900, 500, 60, out ax, out ay, out az);
+        Check(ax == 0 && az == 1000, "can't catch it: aim at it");
+        Tracking.Lead(0, 0, 1000, 0, 0, -200, 500, 60, out ax, out ay, out az);
+        Check(Near(az, 1000 - 200 * (1000.0 / 700), 1e-6), "head-on: meets it early");
+        Tracking.Lead(0, 0, 1e6, 100, 0, 0, 500, 5, out ax, out ay, out az);
+        Check(Near(ax, 500, 1e-9), "lead capped at maxSeconds");
+    }
+
+    static void RustDartSlowTests()
+    {
+        Check(Near(Rust.Add(0, 0.1), 0.1) && Near(Rust.Add(0.5, 0.1), 0.55) && Rust.Add(0.99, 0.5) <= 1 && Rust.Add(1, 1) == 1, "rust builds up, slowing near full");
+        Check(Rust.Add(-1, 2) == 1 && Rust.Add(0.3, -1) == 0.3, "rust amounts clamped");
+        Rust.Tint(0, out double r0, out double g0, out double b0);
+        Rust.Tint(1, out double r1, out double g1, out double b1);
+        Check(r0 == 1 && g0 == 1 && b0 == 1 && r1 > g1 && g1 > b1 && r1 < 1 && b1 > 0.2, "rust tints towards orange-brown, never black");
+        Check(Rust.Shine(0) == 1 && Rust.Shine(1) < 0.2, "rust is matte");
+
+        double[] cone = Darts.Cone(20, 3);
+        bool unit = true, inside = true;
+        for (int i = 0; i < 20; i++)
+        {
+            double x = cone[i * 3], y = cone[i * 3 + 1], z = cone[i * 3 + 2];
+            if (Math.Abs(x * x + y * y + z * z - 1) > 1e-9) unit = false;
+            if (Math.Acos(z) * 180 / Math.PI > 3 + 1e-9) inside = false;
+        }
+        Check(cone.Length == 60 && unit && inside, "20 unit directions inside a 3 degree cone");
+        double minSep = 10;
+        for (int i = 0; i < 20; i++) for (int j = i + 1; j < 20; j++)
+            {
+                double dot = cone[i * 3] * cone[j * 3] + cone[i * 3 + 1] * cone[j * 3 + 1] + cone[i * 3 + 2] * cone[j * 3 + 2];
+                minSep = Math.Min(minSep, Math.Acos(Math.Min(1, dot)) * 180 / Math.PI);
+            }
+        Check(minSep > 0.3, "no two darts on the same line (" + minSep.ToString("0.00") + " degrees apart at least)");
+        Check(Darts.Damage(80, false, 5) == 80 && Darts.Damage(80, true, 5) == 400, "darts shred fragile parts");
+
+        Check(Slow.NewSpeed(250, 1) == 249 && Slow.NewSpeed(0.5, 1) == 0 && Slow.NewSpeed(10, -3) == 10, "each hit takes 1 m/s, never past a stop");
+        Check(Near(Slow.Factor(250, 1), 0.996) && Slow.Factor(0, 1) == 1 && Slow.Factor(0.5, 1) == 0, "velocity factor");
+    }
+
     static int Main()
     {
+        TrackingTests();
+        RustDartSlowTests();
         FieldTests();
         ShatterTests();
         FieldSoundTests();
