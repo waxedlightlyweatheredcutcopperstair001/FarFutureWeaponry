@@ -89,6 +89,8 @@ def main():
         fail(f'{z.relative_to(ROOT)} not found: build it (run without --no-build)')
     with zipfile.ZipFile(z) as zf:
         names = zf.namelist()
+    if f'{NAME}/Shaders/farfutureweaponry-windows.bundle' not in names:
+        fail('the zip has no shader bundle: build it on Windows (tools/make.py)')
     if f'{NAME}/Plugins/{NAME}.dll' not in names:
         fail('the zip has no plugin DLL')
 

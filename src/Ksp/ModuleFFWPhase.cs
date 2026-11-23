@@ -4,22 +4,20 @@ using UnityEngine;
 namespace FarFutureWeaponry
 {
     /// <summary>
-    /// The Quantum Phase-Shift Missile: as it closes on its target (ModuleFFWSeeker's), it goes out of phase. It passes
-    /// through the target's hull and armour without touching them (its colliders ignore the target's), then comes back
-    /// into phase inside and detonates there: when it's within a part's collider, or once it has passed the target's
-    /// centre. A spatial-distortion flash marks the moment it phases through.
+    /// The Quantum Phase-Shift Missile: <see cref="teleportRange"/> from its target (ModuleFFWSeeker's) it goes out of
+    /// phase and vanishes, reappears inside the target's hull (its colliders ignore the target's, so it doesn't crash on
+    /// the way in) and detonates there on the next physics step. Each end gets a flash of bent space with the colours
+    /// torn apart (the phase lens).
     /// </summary>
     public class ModuleFFWPhase : PartModule
     {
-        [KSPField] public float phaseRange = 150;     // m from the target where it goes out of phase
+        [KSPField] public float teleportRange = 400;   // m from the target where it phases out
         [KSPField] public string flashColor = "90, 230, 255, 255";
 
         PartModule missile;
         ModuleFFWSeeker seeker;
-        Vessel phasedWith;
-        bool flashed, detonated;
-        float closest = float.MaxValue;
-        readonly List<Collider> mine = new List<Collider>();
+        bool jumped, detonated;
+        Vessel target;
 
         public override void OnStart(StartState state)
         {
@@ -30,55 +28,37 @@ namespace FarFutureWeaponry
             seeker = part.FindModuleImplementing<ModuleFFWSeeker>();
         }
 
+        public override string GetInfo() => $"<b>Phase shift:</b> {teleportRange:0} m from its target it vanishes, reappears inside the hull and goes off there.";
+
         public void FixedUpdate()
         {
             if (!HighLogic.LoadedSceneIsFlight || missile == null || seeker == null || detonated || !Bda.MissileFired(missile)) return;
-            Vessel t = seeker.Target;
-            if (t == null || !t.loaded) return;
-            Vector3 me = part.transform.position;
-            float d = Vector3.Distance(me, t.CoM);
-            if (d < phaseRange && phasedWith != t) PhaseWith(t);
-            if (phasedWith == null) return;
-            // Back in phase inside the hull: inside one of its parts' colliders, or just past its middle.
-            bool inside = false;
-            foreach (Part p in t.parts)
-            {
-                if (p == null) continue;
-                foreach (Collider c in p.GetComponentsInChildren<Collider>())
-                {
-                    if (c == null || !c.enabled || c.isTrigger) continue;
-                    if (c is MeshCollider mc && !mc.convex) { if (c.bounds.Contains(me)) { inside = true; break; } continue; }
-                    if ((c.ClosestPoint(me) - me).sqrMagnitude < 0.01f) { inside = true; break; }
-                }
-                if (inside) break;
-            }
-            if (!flashed && d < t.vesselSize.magnitude * 0.6f + 5) Flash(me);
-            if (inside || d > closest + 2 && closest < t.vesselSize.magnitude)
+            if (jumped)
             {
                 detonated = true;
-                Log.Info($"{part.partInfo.title}: phased into {t.vesselName}, detonating inside.");
+                Log.Info($"{part.partInfo.title}: back in phase inside {(target != null ? target.vesselName : "its target")}, detonating.");
                 Bda.DetonateMissile(missile);
                 return;
             }
-            closest = Mathf.Min(closest, d);
-        }
-
-        void PhaseWith(Vessel t)
-        {
-            phasedWith = t;
-            mine.Clear();
-            mine.AddRange(part.GetComponentsInChildren<Collider>());
+            Vessel t = seeker.Target;
+            if (t == null || !t.loaded || !seeker.Tracking) return;
+            Vector3 me = part.transform.position;
+            if ((me - t.CoM).sqrMagnitude > teleportRange * teleportRange) return;
+            // Out of phase: no collisions with the target, then across to its middle.
+            target = t;
+            var mine = part.GetComponentsInChildren<Collider>();
             foreach (Part p in t.parts)
                 foreach (Collider c in p.GetComponentsInChildren<Collider>())
                     foreach (Collider m in mine)
                         if (c != null && m != null) Physics.IgnoreCollision(m, c, true);
-            Log.Info($"{part.partInfo.title}: out of phase with {t.vesselName}.");
-        }
-
-        void Flash(Vector3 at)
-        {
-            flashed = true;
-            FieldManager.Instance?.PhaseFlash(at, Core.Rgba.Parse(flashColor, new Core.Rgba(0.35f, 0.9f, 1, 1)).ToColor());
+            Color colour = Core.Rgba.Parse(flashColor, new Core.Rgba(0.35f, 0.9f, 1, 1)).ToColor();
+            FieldManager.Instance?.PhaseFlash(me, colour);
+            Vector3 inside = t.CoM;
+            part.FindModuleImplementing<ModuleFFWTrail>()?.Restart();
+            vessel.SetPosition(inside, false);
+            FieldManager.Instance?.PhaseFlash(inside, colour);
+            jumped = true;
+            Log.Info($"{part.partInfo.title}: phased out {Vector3.Distance(me, inside):0} m from {t.vesselName}.");
         }
     }
 

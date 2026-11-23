@@ -134,6 +134,13 @@ namespace FarFutureWeaponry
             trail = RibbonTrail.Create(part.transform, Rgba.Parse(color, new Rgba(1, 1, 1, 1)).ToColor(), width, fade, spacing, flicker, crackle);
         }
 
+        /// <summary>End the current trail where it is and start a new one (the phase-shift missile's jump: no streak across it).</summary>
+        public void Restart()
+        {
+            if (trail != null) trail.Detach();
+            trail = null;
+        }
+
         void OnDestroy()
         {
             if (trail != null) trail.Detach();

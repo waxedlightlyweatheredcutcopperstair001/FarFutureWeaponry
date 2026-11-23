@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.0
+
+Needs VFX Reconfigured 0.11.0 or newer. The mod now has its own shaders, built with Unity on Windows like VFX
+Reconfigured's.
+
+- **Tachyon Gun**:
+  - Rust now shows, as patches that spread as it builds up (new rust shader). Each hit adds more than before.
+  - Green sparkles where it hits.
+  - Parts it destroys break apart instead of exploding, unless they hold a warhead or an exotic fuel like antimatter.
+- **Quantum Phase-Shift Missile**: 400 m from its target it vanishes and reappears inside the hull, then goes off.
+  Both ends show a flash of bent space with the colours torn apart (new phase lens shader).
+- **Kraken Missile**: much less blast. Its red wave is now a thin layer of light crawling over the hit craft's own
+  parts from where it struck (new contour wave shader).
+- **Kessler Swarm Pod**: radar-guided instead of anti-radiation. Lock the target with your radar before firing.
+
 ## 0.5.0
 
 Every weapon from the design is now in. Placeholder models as before.

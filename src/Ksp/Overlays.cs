@@ -1,0 +1,97 @@
+using System.Collections.Generic;
+using System.IO;
+using UnityEngine;
+
+namespace FarFutureWeaponry
+{
+    /// <summary>
+    /// The plugin's own shaders (Shaders/farfutureweaponry-windows.bundle, built by tools/shaders.py on Windows): rust,
+    /// the contour wave, the phase lens. Missing (a Linux test build, or a load failure): the effects fall back on
+    /// plainer ones.
+    /// </summary>
+    internal static class FfwShaders
+    {
+        static bool loaded;
+        public static Shader Rust, Wave, PhaseLens;
+
+        public static void Load()
+        {
+            if (loaded) return;
+            loaded = true;
+            string plugins = Path.GetDirectoryName(typeof(FfwShaders).Assembly.Location);
+            string path = Path.Combine(Path.GetDirectoryName(plugins), "Shaders", "farfutureweaponry-windows.bundle");
+            if (!File.Exists(path)) { Log.Warn("No shader bundle (" + path + "): rust, the Kraken wave and the phase lens use plainer effects."); return; }
+            AssetBundle bundle = AssetBundle.LoadFromFile(path);
+            if (bundle == null) { Log.Warn("The shader bundle could not be loaded."); return; }
+            foreach (Shader s in bundle.LoadAllAssets<Shader>())
+            {
+                if (!s.isSupported) { Log.Warn($"Shader {s.name} isn't supported on this graphics API."); continue; }
+                switch (s.name)
+                {
+                    case "FarFutureWeaponry/RustOverlay": Rust = s; break;
+                    case "FarFutureWeaponry/ContourWave": Wave = s; break;
+                    case "FarFutureWeaponry/PhaseLens": PhaseLens = s; break;
+                }
+            }
+            Log.Info($"Shaders: rust {(Rust != null ? "ok" : "MISSING")}, contour wave {(Wave != null ? "ok" : "MISSING")}, phase lens {(PhaseLens != null ? "ok" : "MISSING")}.");
+        }
+    }
+
+    /// <summary>
+    /// A second material drawn over a part's own meshes: for each of the part's mesh renderers, a child object sharing
+    /// its mesh with the overlay material on every submesh (drawn just in front of the surface). Parameters go through one
+    /// property block for the whole part.
+    /// </summary>
+    internal sealed class PartOverlay
+    {
+        readonly List<MeshRenderer> renderers = new List<MeshRenderer>();
+        readonly List<GameObject> objects = new List<GameObject>();
+        public readonly MaterialPropertyBlock Block = new MaterialPropertyBlock();
+        public readonly Material Material;
+
+        public PartOverlay(Part part, Shader shader, string name)
+        {
+            Material = new Material(shader) { name = name };
+            foreach (MeshFilter mf in part.FindModelComponents<MeshFilter>())
+            {
+                var src = mf != null ? mf.GetComponent<MeshRenderer>() : null;
+                if (src == null || mf.sharedMesh == null) continue;
+                var go = new GameObject(name);
+                go.layer = mf.gameObject.layer;
+                go.transform.SetParent(mf.transform, false);
+                go.AddComponent<MeshFilter>().sharedMesh = mf.sharedMesh;
+                var r = go.AddComponent<MeshRenderer>();
+                var mats = new Material[Mathf.Max(1, mf.sharedMesh.subMeshCount)];
+                for (int i = 0; i < mats.Length; i++) mats[i] = Material;
+                r.sharedMaterials = mats;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+                r.enabled = src.enabled;
+                renderers.Add(r);
+                objects.Add(go);
+            }
+        }
+
+        public bool Empty => renderers.Count == 0;
+
+        /// <summary>Push the block's values to every renderer (and follow the part's own renderers being shown or hidden).</summary>
+        public void Apply()
+        {
+            for (int i = 0; i < renderers.Count; i++)
+            {
+                MeshRenderer r = renderers[i];
+                if (r == null) continue;
+                var src = r.transform.parent != null ? r.transform.parent.GetComponent<MeshRenderer>() : null;
+                r.enabled = src == null || src.enabled;
+                r.SetPropertyBlock(Block);
+            }
+        }
+
+        public void Destroy()
+        {
+            foreach (GameObject go in objects) if (go != null) Object.Destroy(go);
+            objects.Clear(); renderers.Clear();
+            if (Material != null) Object.Destroy(Material);
+        }
+    }
+}

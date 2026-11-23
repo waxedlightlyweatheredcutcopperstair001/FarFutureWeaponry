@@ -131,6 +131,50 @@ namespace FarFutureWeaponry
             return m;
         }
 
+        static ParticleSystem sparkles;
+
+        /// <summary>
+        /// A burst of twinkling glints at a point (one shared world-space particle system, additive): the Tachyon Gun's
+        /// green sparkle where it hits.
+        /// </summary>
+        public static void Sparkle(Vector3 at, int count, Color colour, float size = 0.2f, float speed = 5)
+        {
+            if (count <= 0) return;
+            if (sparkles == null)
+            {
+                var go = new GameObject("FFW sparkles");
+                Object.DontDestroyOnLoad(go);
+                sparkles = go.AddComponent<ParticleSystem>();
+                sparkles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                var main = sparkles.main;
+                main.playOnAwake = false; main.loop = true; main.duration = 1;
+                main.simulationSpace = ParticleSystemSimulationSpace.World;
+                main.maxParticles = 1500;
+                main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, 0.9f);
+                var em = sparkles.emission; em.rateOverTime = 0;
+                var sh = sparkles.shape; sh.enabled = false;
+                var col = sparkles.colorOverLifetime;
+                col.enabled = true;
+                var g = new Gradient();
+                g.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+                          new[] { new GradientAlphaKey(1, 0), new GradientAlphaKey(0.3f, 0.3f), new GradientAlphaKey(1, 0.5f), new GradientAlphaKey(0.4f, 0.75f), new GradientAlphaKey(0, 1) });
+                col.color = g;
+                var r = go.GetComponent<ParticleSystemRenderer>();
+                r.sharedMaterial = Additive(Glow, new Color(0.5f, 0.5f, 0.5f, 0.5f));
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+                sparkles.Play();
+            }
+            var p = new ParticleSystem.EmitParams();
+            for (int i = 0; i < count; i++)
+            {
+                p.position = at + Random.insideUnitSphere * size * 2;
+                p.velocity = Random.insideUnitSphere * speed;
+                p.startSize = size * Random.Range(0.5f, 1.4f);
+                p.startColor = Color.Lerp(colour, Color.white, Random.Range(0f, 0.6f));
+                sparkles.Emit(p, 1);
+            }
+        }
+
         static Transform Frame => FlightGlobals.currentMainBody != null ? FlightGlobals.currentMainBody.transform : null;
 
         public static Vector3d ToFrame(Vector3 world)

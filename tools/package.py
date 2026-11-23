@@ -7,6 +7,8 @@ Usage:
 
 Layout of the package:
     Plugins/FarFutureWeaponry.dll      the plugin (tools/build.py)
+    Shaders/farfutureweaponry-windows.bundle   its shaders (tools/shaders.py, Windows; without them the plugin
+                                       falls back on plainer effects)
     Parts/<Part>/                      part.cfg (configs/) + model, textures, sounds (assets/)
     FX/, Sounds/                       borrowed explosion models, textures, sounds (assets/)
     Bullets.cfg, Resources.cfg, Effects.cfg
@@ -39,6 +41,12 @@ def assemble(out):
     if not dll.exists():
         sys.exit(f'build/{NAME}.dll not found: run tools/build.py first.')
     copy(dll, out / 'Plugins' / dll.name)
+    bundle = ROOT / 'build' / 'shader-bundle' / 'farfutureweaponry-windows.bundle'
+    if bundle.exists() and bundle.read_bytes()[:7] == b'UnityFS':
+        copy(bundle, out / 'Shaders' / bundle.name)
+    else:
+        print('WARNING: no shader bundle (build/shader-bundle/farfutureweaponry-windows.bundle): run tools/make.py on Windows. '
+              'Packaging without it: rust, the Kraken wave and the phase lens fall back on plainer effects.')
     for folder in ('assets', 'configs', 'package'):
         for f in sorted((ROOT / folder).rglob('*')):
             if f.is_file():

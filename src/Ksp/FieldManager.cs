@@ -99,7 +99,12 @@ namespace FarFutureWeaponry
         sealed class Ripple { public Vector3d Where; public float Start, Seconds, Radius; }
         readonly List<Ripple> ripples = new List<Ripple>();
 
-        sealed class Wave { public Vector3d Where; public float Start, Seconds, Radius; public Color Colour; }
+        sealed class Wave
+        {
+            public Vector3d Where; public float Start, Seconds, Radius; public Color Colour;
+            public List<PartOverlay> Overlays;   // with the plugin's shaders: the wave drawn over the craft's own parts
+        }
+        static readonly int WaveId = Shader.PropertyToID("_Wave"), WaveShapeId = Shader.PropertyToID("_WaveShape"), WaveColourId = Shader.PropertyToID("_Color");
         readonly List<Wave> waves = new List<Wave>();
 
         sealed class Arcs { public Vector3d Where; public float Start, Seconds, Radius; public LineRenderer[] Lines; public Material Mat; }
@@ -138,12 +143,40 @@ namespace FarFutureWeaponry
             });
         }
 
-        /// <summary>The phase-shift missile passing through a hull: a cyan flash and a ripple of bent space.</summary>
+        /// <summary>
+        /// The phase-shift missile vanishing or reappearing: a cyan flash and, with the plugin's shaders, the phase lens
+        /// (bent space, the colours torn apart); without them, a ripple of bent space through VFX Reconfigured.
+        /// </summary>
         internal void PhaseFlash(Vector3 at, Color c)
         {
             SmallFlash(at, c, 12, 0.35f);
-            ripples.Add(new Ripple { Where = Visuals.ToFrame(at), Start = Time.time, Seconds = 0.6f, Radius = 30 });
+            FfwShaders.Load();
+            if (FfwShaders.PhaseLens == null)
+            {
+                ripples.Add(new Ripple { Where = Visuals.ToFrame(at), Start = Time.time, Seconds = 0.6f, Radius = 30 });
+                return;
+            }
+            if (lensQuad == null)
+            {
+                lensQuad = new Mesh { name = "FFW phase lens quad" };
+                lensQuad.vertices = new[] { new Vector3(-1, -1, 0), new Vector3(1, -1, 0), new Vector3(1, 1, 0), new Vector3(-1, 1, 0) };
+                lensQuad.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+                lensQuad.bounds = new Bounds(Vector3.zero, Vector3.one * 2e5f);   // (sized by the shader)
+            }
+            var go = new GameObject("FFW phase lens");
+            go.transform.position = at;
+            go.AddComponent<MeshFilter>().sharedMesh = lensQuad;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = new Material(FfwShaders.PhaseLens);
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; mr.receiveShadows = false;
+            lenses.Add(new PhaseLensFx { Where = Visuals.ToFrame(at), Start = Time.time, Go = go, Mat = mr.sharedMaterial });
         }
+
+        sealed class PhaseLensFx { public Vector3d Where; public float Start; public GameObject Go; public Material Mat; }
+        readonly List<PhaseLensFx> lenses = new List<PhaseLensFx>();
+        Mesh lensQuad;
+        static readonly int PhaseLensId = Shader.PropertyToID("_Lens");
+        const float PhaseLensSeconds = 0.7f, PhaseLensRadius = 28;
 
         // ---- Warheads ----
 
@@ -247,9 +280,23 @@ namespace FarFutureWeaponry
                     if (ClosestPart(v, at) > b.killCrewRadius) continue;
                     int killed = KillCrew(v);
                     if (killed > 0) Log.Info($"{b.part.partInfo.title}: {killed} Kerbal(s) aboard {v.vesselName} killed.");
-                    float size = Mathf.Max(10, v.vesselSize.magnitude);
-                    waves.Add(new Wave { Where = Visuals.ToFrame(v.CoM), Start = Time.time, Seconds = 0.9f, Radius = size * 1.2f,
-                                         Colour = Rgba.Parse(b.waveColor, new Rgba(1, 0.1f, 0.1f, 1)).ToColor() });
+                    var w = new Wave { Start = Time.time, Colour = Rgba.Parse(b.waveColor, new Rgba(1, 0.1f, 0.1f, 1)).ToColor() };
+                    FfwShaders.Load();
+                    if (FfwShaders.Wave != null)
+                    {
+                        // A thin red layer sweeping over the hull's own contours from where it hit, out to its far end.
+                        float far = 0;
+                        foreach (Part p in v.parts) if (p != null) far = Mathf.Max(far, Vector3.Distance(p.transform.position, at) + 3);
+                        w.Where = Visuals.ToFrame(at); w.Radius = far; w.Seconds = Mathf.Clamp(far / 12, 0.8f, 2.5f);
+                        w.Overlays = new List<PartOverlay>();
+                        foreach (Part p in v.parts) if (p != null) { var o = new PartOverlay(p, FfwShaders.Wave, "FFW kraken wave"); if (!o.Empty) w.Overlays.Add(o); else o.Destroy(); }
+                    }
+                    else
+                    {
+                        float size = Mathf.Max(10, v.vesselSize.magnitude);
+                        w.Where = Visuals.ToFrame(v.CoM); w.Seconds = 0.9f; w.Radius = size * 1.2f;
+                    }
+                    waves.Add(w);
                 }
             }
 
@@ -610,6 +657,18 @@ namespace FarFutureWeaponry
                 if (fl.Light != null) { fl.Light.transform.position = at; fl.Light.intensity = Mathf.Min(8, p * 3); }
             }
             Targets.Tick();
+            TachyonHit.Tick();
+            for (int i = lenses.Count - 1; i >= 0; i--)
+            {
+                PhaseLensFx l = lenses[i];
+                float x = (now - l.Start) / PhaseLensSeconds;
+                if (x >= 1) { Destroy(l.Go); Destroy(l.Mat); lenses.RemoveAt(i); continue; }
+                // Snaps open, then closes; the colours stay torn apart longer than the bending lasts.
+                float k = Mathf.Clamp01(x / 0.08f) * (1 - x) * (1 - x);
+                float chroma = Mathf.Clamp01(x / 0.05f) * (1 - x);
+                l.Go.transform.position = Visuals.FromFrame(l.Where);
+                l.Mat.SetVector(PhaseLensId, new Vector4(PhaseLensRadius * (0.6f + 0.6f * x), 1.6f * k, 1.4f * chroma, 0));
+            }
             for (int i = ripples.Count - 1; i >= 0; i--)
             {
                 Ripple r = ripples[i];
@@ -621,8 +680,26 @@ namespace FarFutureWeaponry
             {
                 Wave w = waves[i];
                 float x = (now - w.Start) / w.Seconds;
-                if (x >= 1) { waves.RemoveAt(i); continue; }
-                // A shell of red light sweeping out over the craft: a bright edge, a faint red inside it.
+                if (x >= 1.25f || w.Overlays == null && x >= 1)
+                {
+                    if (w.Overlays != null) foreach (PartOverlay o in w.Overlays) o.Destroy();
+                    waves.RemoveAt(i); continue;
+                }
+                if (w.Overlays != null)
+                {
+                    // (the band runs past the far end, then its trail fades)
+                    float fade = x <= 1 ? 1 : 1 - (x - 1) / 0.25f;
+                    Vector3 o0 = Visuals.FromFrame(w.Where);
+                    foreach (PartOverlay o in w.Overlays)
+                    {
+                        o.Block.SetVector(WaveId, new Vector4(o0.x, o0.y, o0.z, w.Radius * Mathf.Min(x, 1.1f)));
+                        o.Block.SetVector(WaveShapeId, new Vector4(0.35f, 3f, 2.2f * fade, 1));
+                        o.Block.SetColor(WaveColourId, w.Colour);
+                        o.Apply();
+                    }
+                    continue;
+                }
+                // (fallback without the plugin's shaders) a shell of red light sweeping out over the craft.
                 Vfxr.TintSphere(Visuals.FromFrame(w.Where), Mathf.Max(0.5f, w.Radius * x), new Color(1, 0.35f, 0.3f), 0.35f * (1 - x), w.Colour, 3 * (1 - x * x));
             }
             for (int i = arcs.Count - 1; i >= 0; i--)
@@ -712,8 +789,13 @@ namespace FarFutureWeaponry
             foreach (ShatterFx d in duds) d.Clear();
             duds.Clear();
             foreach (Arcs a in arcs) { foreach (LineRenderer lr in a.Lines) if (lr != null) Destroy(lr.gameObject); Destroy(a.Mat); }
+            foreach (Wave w in waves) if (w.Overlays != null) foreach (PartOverlay o in w.Overlays) o.Destroy();
+            foreach (PhaseLensFx l in lenses) { if (l.Go != null) Destroy(l.Go); if (l.Mat != null) Destroy(l.Mat); }
+            lenses.Clear();
+            if (lensQuad != null) Destroy(lensQuad);
             arcs.Clear(); ripples.Clear(); waves.Clear();
             Targets.Clear();
+            TachyonHit.Clear();
             if (Instance == this) Instance = null;
         }
     }

@@ -20,6 +20,7 @@ namespace FarFutureWeaponry
         void Start()
         {
             Bda.Init();
+            FfwShaders.Load();
             var missing = new List<string>();
             foreach (var (assembly, name, why) in Required)
             {
