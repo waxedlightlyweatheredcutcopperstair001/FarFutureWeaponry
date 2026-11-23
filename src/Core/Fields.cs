@@ -72,7 +72,8 @@ namespace FarFutureWeaponry.Core
         // hang there, and play back to the start as time returns.
         public const double SlowDown = 1.2, SpeedUp = 2.0;
 
-        // The Blue Rinse: the sphere spreads over RinseSpread seconds (fast at first, easing out), then fades.
+        // The Blue Rinse: the sphere reaches the kill radius after RinseSpread seconds (fast at first, slowing), then keeps
+        // spreading at the speed it had there while it fades out over RinseFade seconds; it kills only inside the radius.
         public const double RinseSpread = 2.5, RinseFade = 1.0;
 
         /// <summary>How fast time runs inside the field at t (1 normal, 0 stopped).</summary>
@@ -150,9 +151,9 @@ namespace FarFutureWeaponry.Core
                 {
                     // An electric-blue sphere spreading from the centre out to the full radius, a flash as it goes off, then
                     // fading; every Kerbal it reaches dies.
-                    double x = Clamp01(t / RinseSpread);
-                    l.SphereRadius = R * (1 - (1 - x) * (1 - x) * (1 - x));
-                    l.SphereAlpha = t < RinseSpread ? 0.9 : 0.9 * (1 - Clamp01((t - RinseSpread) / RinseFade));
+                    double x = Math.Max(0, t / RinseSpread);
+                    l.SphereRadius = x <= 1 ? R * Math.Pow(x, 0.6) : R * (1 + 0.6 * (x - 1));
+                    l.SphereAlpha = t < RinseSpread ? 0.9 : 0.9 * (1 - Smooth(0, RinseFade, t - RinseSpread));
                     l.Killing = t <= RinseSpread;
                     l.Flash = 2.5 * Math.Exp(-t / 0.2); l.FlashRadius = 0.1 * R;
                     break;

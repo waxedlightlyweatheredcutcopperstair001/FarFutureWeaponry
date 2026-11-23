@@ -11,8 +11,8 @@ namespace FarFutureWeaponry
     /// </summary>
     public class ModuleFFWPhase : PartModule
     {
-        [KSPField] public float teleportRange = 400;   // m from the target where it phases out
-        [KSPField] public float phaseDelay = 1.5f;     // s out of phase
+        [KSPField] public float teleportRange = 100;   // m from the target where it phases out
+        [KSPField] public float phaseDelay = 0.5f;     // s out of phase
         [KSPField] public string flashColor = "90, 230, 255, 255";
 
         PartModule missile;

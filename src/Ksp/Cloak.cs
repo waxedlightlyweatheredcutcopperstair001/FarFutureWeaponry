@@ -107,6 +107,10 @@ namespace FarFutureWeaponry
             }
         }
 
+        // Every renderer any cloak has switched off (the hologram generator still copies those).
+        static readonly HashSet<Renderer> allHidden = new HashSet<Renderer>();
+        internal static bool HiddenByCloak(Renderer r) => r != null && allHidden.Contains(r);
+
         // Each part's own renderers, hidden while it's cloaked (by part: they vanish one by one as the wave reaches them).
         readonly Dictionary<Part, List<Renderer>> hiddenBy = new Dictionary<Part, List<Renderer>>();
 
@@ -135,7 +139,7 @@ namespace FarFutureWeaponry
             {
                 // (plumes and effects that come on while cloaked: an engine lighting up)
                 foreach (Renderer r in p.GetComponentsInChildren<Renderer>())
-                    if (r != null && r.enabled && !r.name.StartsWith("FFW cloak")) { r.enabled = false; list.Add(r); }
+                    if (r != null && r.enabled && !r.name.StartsWith("FFW ")) { r.enabled = false; list.Add(r); allHidden.Add(r); }
                 return;
             }
             if (hide == isHidden) return;
@@ -143,12 +147,12 @@ namespace FarFutureWeaponry
             {
                 list = new List<Renderer>();
                 foreach (Renderer r in p.GetComponentsInChildren<Renderer>())
-                    if (r != null && r.enabled && !r.name.StartsWith("FFW cloak")) { r.enabled = false; list.Add(r); }
+                    if (r != null && r.enabled && !r.name.StartsWith("FFW ")) { r.enabled = false; list.Add(r); allHidden.Add(r); }
                 hiddenBy[p] = list;
             }
             else
             {
-                foreach (Renderer r in list) if (r != null) r.enabled = true;
+                foreach (Renderer r in list) if (r != null) { r.enabled = true; allHidden.Remove(r); }
                 hiddenBy.Remove(p);
             }
         }
@@ -156,7 +160,7 @@ namespace FarFutureWeaponry
         /// <summary>Every part back in view.</summary>
         void Show()
         {
-            foreach (var kv in hiddenBy) foreach (Renderer r in kv.Value) if (r != null) r.enabled = true;
+            foreach (var kv in hiddenBy) foreach (Renderer r in kv.Value) if (r != null) { r.enabled = true; allHidden.Remove(r); }
             hiddenBy.Clear();
         }
 

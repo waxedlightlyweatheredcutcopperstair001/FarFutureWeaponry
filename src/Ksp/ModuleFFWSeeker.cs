@@ -81,6 +81,13 @@ namespace FarFutureWeaponry
                 Target = null;
             }
             Tracking = Target != null && Targets.CanSee(kind, me, Target);
+            // A cloaked craft's holograms still show: optical tracking can't see the craft, only them, and goes for one.
+            if (!Tracking && kind == TrackerKind.Optical && Target != null && Target.loaded && Targets.Hologram(Target, 0) != null &&
+                Vector3.Distance(me, Target.CoM) < Core.Tracking.OpticalRange)
+            {
+                if (decoy < 0) { decoy = Random.Range(0, 6); decoyRolled = true; Log.Info($"{part.partInfo.title}: {Target.vesselName} is cloaked; going for one of its holograms."); }
+                Tracking = true;
+            }
             // Holograms: optical tracking is likely to take one for the real craft (decided once, when it first sees them).
             Vector3 aimAt = Tracking ? Target.CoM : Vector3.zero;
             if (Tracking && kind == TrackerKind.Optical)

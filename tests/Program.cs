@@ -245,8 +245,10 @@ static class Program
         var rinse = new FieldSpec { Kind = FieldKind.Rinse, Radius = 1000 };
         Check(FieldSpec.Parse("rinse") == FieldKind.Rinse && FieldSpec.Parse("Seismic") == FieldKind.Seismic, "rinse and seismic parse");
         var r1 = Fields.At(rinse, 0.5); var r2 = Fields.At(rinse, 2.5); var r3 = Fields.At(rinse, 3);
-        Check(r1.SphereRadius > 400 && r1.SphereRadius < 1000 && r1.Killing && Near(r2.SphereRadius, 1000) && r2.Killing, "rinse: spreads fast, easing out, to 1 km");
-        Check(!r3.Killing && r3.SphereAlpha < r2.SphereAlpha && Fields.At(rinse, Fields.End(rinse) + 0.01).Over, "rinse: then fades, killing no more");
+        Check(r1.SphereRadius > 300 && r1.SphereRadius < 1000 && r1.Killing && Near(r2.SphereRadius, 1000) && r2.Killing, "rinse: spreads fast, slowing, to 1 km");
+        var r4 = Fields.At(rinse, 3.49);
+        Check(!r3.Killing && r3.SphereRadius > 1050 && r3.SphereAlpha < r2.SphereAlpha && r3.SphereAlpha > 0.2, "rinse: keeps spreading past the radius as it fades, killing no more");
+        Check(r4.SphereAlpha < 0.01 && r4.SphereRadius > r3.SphereRadius && Fields.At(rinse, Fields.End(rinse) + 0.01).Over, "rinse: gone about a second past the radius");
         // Seismic charge: a ring at 400 m/s out to 1 km (2.5 s), fading over the last fifth.
         var seis = new FieldSpec { Kind = FieldKind.Seismic, Radius = 1000, RingSpeed = 400 };
         var s1 = Fields.At(seis, 1); var s2 = Fields.At(seis, 2.45); var s3 = Fields.At(seis, 2.55);

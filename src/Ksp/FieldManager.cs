@@ -225,7 +225,7 @@ namespace FarFutureWeaponry
             {
                 case FieldKind.Gravity: f.Edge = new Color(0.75f, 0.8f, 1f); f.Core = Color.white; f.SphereColour = new Color(0.85f, 0.9f, 1f); break;
                 case FieldKind.Warp: f.Edge = new Color(0.3f, 0.5f, 1f); f.Core = new Color(0.9f, 0.95f, 1f); break;
-                case FieldKind.Rinse: f.Edge = new Color(0.25f, 0.55f, 1f); f.Core = new Color(0.8f, 0.9f, 1f); f.SphereColour = new Color(0.3f, 0.6f, 1f); break;
+                case FieldKind.Rinse: f.Edge = new Color(0.25f, 0.55f, 1f); f.Core = new Color(0.8f, 0.9f, 1f); f.SphereColour = new Color(0.12f, 0.45f, 1f); break;
                 case FieldKind.Seismic: f.Edge = new Color(0.3f, 0.65f, 1f); f.Core = Color.white; break;
                 default: f.Edge = new Color(0.25f, 1f, 0.4f); f.Core = new Color(0.85f, 1f, 0.85f); f.SphereColour = new Color(0.25f, 1f, 0.4f); break;
             }
@@ -473,7 +473,8 @@ namespace FarFutureWeaponry
             f.Sphere = Visuals.Sphere();
             f.SphereNormals = f.Sphere.vertices;
             f.SphereColours = new Color[f.SphereNormals.Length];
-            f.SphereMat = Visuals.Additive(Visuals.White, new Color(0.5f, 0.5f, 0.5f, 0.5f));
+            f.SphereMat = f.Spec.Kind == FieldKind.Rinse ? Visuals.AlphaBlended(Visuals.White, new Color(0.5f, 0.5f, 0.5f, 0.5f))
+                                                        : Visuals.Additive(Visuals.White, new Color(0.5f, 0.5f, 0.5f, 0.5f));
             var s = new GameObject("FFW field sphere");
             s.transform.SetParent(f.Go.transform, false);
             s.AddComponent<MeshFilter>().sharedMesh = f.Sphere;
@@ -618,7 +619,7 @@ namespace FarFutureWeaponry
                     PauseBlasts(f, centre, look);
                 }
 
-                if (f.Spec.Kind == FieldKind.Rinse && look.Killing) Rinse(f, centre, (float)look.SphereRadius);
+                if (f.Spec.Kind == FieldKind.Rinse && look.Killing) Rinse(f, centre, Mathf.Min((float)look.SphereRadius, (float)f.Spec.Radius));
                 if (f.Spec.Kind == FieldKind.Seismic) Cut(f, centre, (float)look.RingRadius2);
 
                 if (f.Spec.Kind == FieldKind.Gravity && !f.Blasted && t >= f.Spec.Duration)
@@ -894,15 +895,24 @@ namespace FarFutureWeaponry
             // and out. (Its own sphere below is the fallback.)
             if (on && f.Spec.Kind == FieldKind.Tachyon &&
                 Vfxr.TintSphere(centre, r, TachyonTint, 0.6f * (float)look.SphereAlpha, TachyonEdge, 1.2f * (float)look.SphereAlpha)) on = false;
-            // The Blue Rinse: a faint blue inside, a bright electric-blue edge.
-            if (on && f.Spec.Kind == FieldKind.Rinse &&
-                Vfxr.TintSphere(centre, r, new Color(0.7f, 0.82f, 1f), 0.3f * (float)look.SphereAlpha, new Color(0.3f, 0.6f, 1f), 2f * (float)look.SphereAlpha)) on = false;
             f.SphereT.gameObject.SetActive(on);
             if (!on) return;
             f.SphereT.localScale = Vector3.one * r;
             Vector3 eye = cam != null ? (cam.transform.position - centre) / r : Vector3.up * 10;
             float a = (float)look.SphereAlpha;
             Color c = f.SphereColour;
+            if (f.Spec.Kind == FieldKind.Rinse)
+            {
+                // The Blue Rinse: a solid, even electric blue (alpha-blended, not glowing), a touch denser at the rim.
+                for (int i = 0; i < f.SphereNormals.Length; i++)
+                {
+                    Vector3 n = f.SphereNormals[i];
+                    float rim = 1 - Mathf.Abs(Vector3.Dot(n, (n - eye).normalized));
+                    f.SphereColours[i] = new Color(c.r, c.g, c.b, a * (0.5f + 0.2f * rim * rim));
+                }
+                f.Sphere.colors = f.SphereColours;
+                return;
+            }
             for (int i = 0; i < f.SphereNormals.Length; i++)
             {
                 Vector3 n = f.SphereNormals[i];

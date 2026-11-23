@@ -33,6 +33,18 @@ namespace FarFutureWeaponry
             return m;
         }
 
+        static Shader alphaBlended;
+
+        /// <summary>Alpha-blended (see-through, not glowing) particle material: texture x _TintColor x vertex colour, x2.</summary>
+        public static Material AlphaBlended(Texture tex, Color tint)
+        {
+            if (alphaBlended == null)
+                alphaBlended = Shader.Find("KSP/Particles/Alpha Blended") ?? Shader.Find("Legacy Shaders/Particles/Alpha Blended") ?? AdditiveShader;
+            var m = new Material(alphaBlended) { mainTexture = tex };
+            m.SetColor("_TintColor", tint);
+            return m;
+        }
+
         /// <summary>A soft round glow: white centre falling to transparent at the edge.</summary>
         public static Texture2D Glow
         {

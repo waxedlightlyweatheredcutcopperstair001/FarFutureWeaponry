@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.1
+
+- **Hologram Generator**:
+  - No longer switches itself on when the craft loads: only its button (or action group) projects the holograms.
+  - No more flares and chaff: the part's dispensers are gone.
+  - The holograms now look like the craft: its own colours, tinted a little blue, semi-transparent, with a blue rim,
+    faint scanlines and the occasional glitch (needs the rebuilt shader bundle; without it, a plainer see-through copy).
+  - They stay fully visible while the craft is cloaked.
+- **Blue Rinse**: a solid electric-blue sphere instead of the gridded one, less see-through. It keeps spreading past
+  the 1 km kill radius and fades out over about a second.
+- **Quantum Phase-Shift Missile**: vanishes 100 m from the target (was 400 m) and reappears 0.5 s later (was 1.5 s).
+- **Infinite electricity cheat**: the hologram generator, signal scrambler and micro-hop drive no longer refuse to
+  work for lack of charge with it on. (Everything else already respected it.)
+
 ## 0.9.0
 
 New parts from the updated design, and one extra.
