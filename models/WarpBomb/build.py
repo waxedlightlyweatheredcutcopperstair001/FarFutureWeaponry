@@ -1,12 +1,12 @@
-"""Warp Bomb: a 1.25 m sphere of grey plating, panelled in latitude bands and covered in small blocks and towers, with
-a dark trench round its equator whose floor and walls glow blue once it's armed (ModuleFFWArmGlow lights
+"""Warp Bomb: a 1.25 m sphere of grey plating, panelled in latitude bands, some panels standing a little proud of the
+hull (modelled where the texture draws them, so they line up), with a dark trench round its equator whose floor and walls glow blue once it's armed (ModuleFFWArmGlow lights
 _EmissiveColor), and a small suspension lug on top for the rail.
 
 Run with tools/model.py WarpBomb. Writes model.mu, WarpBomb.png, WarpBomb_NRM.png and WarpBomb_Emissive.png.
 
 Texture atlas (2048 x 2048, v up):
     v 0.25-1      the hull, equirectangular: u = longitude, v = latitude (-90 at 0.25, +90 at 1)
-    v 0-0.25      tiles: u 0-0.25 block tops, 0.25-0.5 block sides, 0.5-0.75 trench walls (v = floor to rim),
+    v 0-0.25      tiles: u 0-0.25 (spare), 0.25-0.5 raised panels' sides, 0.5-0.75 trench walls (v = floor to rim),
                   0.75-1 trench floor (upper half; repeated per segment, with the glowing strip) and lug metal (lower)
 """
 import math, os, sys
@@ -31,76 +31,85 @@ SEED = 83
 
 rng = np.random.default_rng(SEED)
 
-# ---------------------------------------------------------------- textures
+# ---------------------------------------------------------------- panel layout
 
-def hull_region():
-    """Albedo, height and grime for the hull (2048 x 1536)."""
-    W, H = N, N * 3 // 4
-    alb = np.full((H, W), 0.5, np.float32)
-    hgt = np.zeros((H, W), np.float32)
-    px_per_deg_y = H / 180.0
-    px_per_deg_x = W / 360.0
+PX_X = 360.0 / N                # degrees of longitude per texture pixel
+PX_Y = 180.0 / (N * 3 // 4)     # degrees of latitude per texture pixel
+LINE = 2                        # panel seams, in pixels
 
-    def lat_row(lat):
-        return int(round((lat + 90) * px_per_deg_y))
 
-    def panel(x0, x1, y0, y1, tone, height):
-        alb[y0:y1, x0:x1] = tone
-        hgt[y0:y1, x0:x1] = height
-
-    def blocks(x0, x1, y0, y1, depth):
-        """City blocks: a panel split into smaller rectangles of different tones and heights."""
-        if depth == 0 or (x1 - x0) < 10 or (y1 - y0) < 8:
-            panel(x0, x1, y0, y1, rng.uniform(0.4, 0.58), rng.uniform(-1.5, 2.5))
-            return
-        if (x1 - x0) > (y1 - y0) * rng.uniform(0.6, 1.6):
-            s = int(rng.uniform(0.3, 0.7) * (x1 - x0)) + x0
-            blocks(x0, s, y0, y1, depth - 1); blocks(s, x1, y0, y1, depth - 1)
-        else:
-            s = int(rng.uniform(0.3, 0.7) * (y1 - y0)) + y0
-            blocks(x0, x1, y0, s, depth - 1); blocks(x0, x1, s, y1, depth - 1)
-
-    lines = np.zeros((H, W), bool)
+def layout():
+    """
+    The hull's plating, shared by the texture and the geometry: bands of latitude, each split into panels round the
+    sphere. Each panel: (lat_a, lat_b, lon_a, lon_b, kind, tone) in degrees; kind is 'plain', 'dark' (recessed),
+    'split' (two halves of slightly different tones), 'raised' (also modelled, standing proud of the hull) or 'ring'
+    (a whole ring near the poles).
+    """
+    panels = []
     lat0 = math.degrees(LAT0)
     for sign in (1, -1):
         lat = lat0
         while lat < 90:
-            band = rng.uniform(2.5, 6.0) if lat < 70 else rng.uniform(4, 7)
+            band = rng.uniform(3.0, 6.0) if lat < 70 else rng.uniform(4, 7)
             hi = min(90, lat + band)
+            if 90 - hi < 3: hi = 90
             la, lb = (lat, hi) if sign > 0 else (-hi, -lat)
-            y0, y1 = lat_row(la), lat_row(lb)
             mid = math.radians((la + lb) / 2)
             if abs(math.degrees(mid)) > 72:
-                # Near the poles: whole rings of plating.
-                panel(0, W, y0, y1, rng.uniform(0.44, 0.56), 0)
+                panels.append((la, lb, 0.0, 360.0, 'ring', rng.uniform(0.45, 0.55)))
             else:
-                # Panels round the band, each 6-20 cm wide on the hull.
+                # Panels 8-24 cm wide on the hull.
                 widths = []
                 while sum(widths) < 360:
-                    w_m = rng.uniform(0.06, 0.2)
-                    widths.append(math.degrees(w_m / (R * math.cos(mid))))
+                    widths.append(math.degrees(rng.uniform(0.08, 0.24) / (R * math.cos(mid))))
                 k = 360 / sum(widths)
                 x = 0.0
                 for wd in widths:
-                    xa, xb = int(round(x * px_per_deg_x)), int(round((x + wd * k) * px_per_deg_x))
-                    x += wd * k
+                    w_deg = wd * k
+                    w_m = math.radians(w_deg) * R * math.cos(mid)
                     r = rng.random()
-                    if r < 0.28:
-                        blocks(xa, xb, y0, y1, 4)
-                    elif r < 0.38:
-                        panel(xa, xb, y0, y1, rng.uniform(0.28, 0.36), -1.2)      # recessed, darker
+                    if r < 0.15 and w_m > 0.1 and (lb - la) > 3.5 and abs(math.degrees(mid)) < 68:
+                        kind, tone = 'raised', rng.uniform(0.52, 0.6)
+                    elif r < 0.27:
+                        kind, tone = 'dark', rng.uniform(0.3, 0.37)
+                    elif r < 0.37 and w_m > 0.14:
+                        kind, tone = 'split', rng.uniform(0.45, 0.55)
                     else:
-                        panel(xa, xb, y0, y1, rng.uniform(0.45, 0.57), 0)
-                    lines[y0:y1, xa:min(xa + 2, W)] = True
-            lines[y0:y0 + 2, :] = True
+                        kind, tone = 'plain', rng.uniform(0.45, 0.56)
+                    panels.append((la, lb, x, x + w_deg, kind, tone))
+                    x += w_deg
             lat = hi
+    return panels
+
+# ---------------------------------------------------------------- textures
+
+def hull_region(panels):
+    """Albedo and height for the hull (2048 x 1536): plain panels and their seams, nothing smaller."""
+    W, H = N, N * 3 // 4
+    alb = np.full((H, W), 0.5, np.float32)
+    hgt = np.zeros((H, W), np.float32)
+    lines = np.zeros((H, W), bool)
+
+    def row(lat): return int(round((lat + 90) / PX_Y))
+    def col(lon): return int(round(lon / PX_X))
+
+    for la, lb, oa, ob, kind, tone in panels:
+        y0, y1, x0, x1 = row(la), row(lb), col(oa), min(W, col(ob))
+        alb[y0:y1, x0:x1] = tone
+        hgt[y0:y1, x0:x1] = -1.0 if kind == 'dark' else 0
+        if kind == 'split':
+            xm = (x0 + x1) // 2
+            alb[y0:y1, xm:x1] = tone + rng.choice([-0.05, 0.05])
+            lines[y0:y1, xm:xm + LINE] = True
+        lines[y0:y0 + LINE, x0:x1] = True
+        if kind != 'ring':
+            lines[y0:y1, x0:x0 + LINE] = True
     # The plating's edge by the trench: a darker lip.
-    e = lat_row(lat0 + 1.6); s = lat_row(-lat0 - 1.6)
-    alb[s:e, :] *= 0.6
+    lat0 = math.degrees(LAT0)
+    alb[row(-lat0 - 1.6):row(lat0 + 1.6), :] *= 0.6
     alb[lines] *= 0.5
     hgt[lines] -= 2.0
-    grime = mulib.value_noise(H, W, 24, SEED + 1)
-    alb *= 0.9 + 0.2 * grime
+    alb *= 0.94 + 0.12 * mulib.value_noise(H, W, 12, SEED + 1)     # (broad, faint weathering only)
     return alb, hgt
 
 
@@ -118,10 +127,8 @@ def tiles():
         w, h = rng.integers(8, 60), rng.integers(8, 60)
         alb[y:y + h, x:x + w] = rng.uniform(0.48, 0.66)
         hgt[y:y + h, x:x + w] = rng.uniform(-1, 1.5)
-    # Block sides: mid grey with horizontal grooves.
-    alb[:, q:2 * q] = 0.42
-    for y in range(6, H, 22):
-        alb[y:y + 2, q:2 * q] = 0.26; hgt[y:y + 2, q:2 * q] = -1.5
+    # Sides of the raised panels: plain, a little darker than their tops.
+    alb[:, q:2 * q] = 0.38
     # Trench walls (v = floor to rim): dark, with pipes running round; the glow climbs a little from the floor.
     alb[:, 2 * q:3 * q] = 0.11
     for y in range(40, H - 14, 46):
@@ -130,24 +137,21 @@ def tiles():
         alb[y:y + 14, 2 * q:3 * q] = 0.17
     ramp = np.clip(1 - np.arange(H) / 110.0, 0, 1) ** 1.5
     emi[:, 2 * q:3 * q] = 0.55 * ramp[:, None]
-    # Trench floor (top half, repeated along each segment): dark, a glowing strip in four slots.
+    # Trench floor (top half, repeated along each segment): dark, with one unbroken glowing strip round it.
     top = slice(H // 2, H)
     alb[top, 3 * q:] = 0.07
     fy0, fy1 = H // 2 + 70, H - 70
     alb[fy0:fy1, 3 * q:] = 0.75
     emi[fy0 - 10:fy1 + 10, 3 * q:] = 0.45
     emi[fy0:fy1, 3 * q:] = 1.0
-    for k in range(4):
-        x = 3 * q + k * (q // 4)
-        alb[fy0:fy1, x:x + 10] = 0.07; emi[fy0:fy1, x:x + 10] = 0.15; hgt[fy0:fy1, x:x + 10] = -2
     # Lug metal (bottom half): darker gunmetal.
     alb[0:H // 2, 3 * q:] = 0.28
     alb[0:H // 2, 3 * q:] += (rng.random((H // 2, q)).astype(np.float32) - 0.5) * 0.04
     return alb, hgt, emi
 
 
-def make_textures(out):
-    h_alb, h_hgt = hull_region()
+def make_textures(out, panels):
+    h_alb, h_hgt = hull_region(panels)
     t_alb, t_hgt, t_emi = tiles()
     alb = np.vstack([t_alb, h_alb])
     hgt = np.vstack([t_hgt, h_hgt])
@@ -262,42 +266,44 @@ def box(b, centre, east, north, up, a, c, h, sink):
         b.face([lo[i], lo[i2], hi[i2], hi[i]], [tile_uv(1, s0, 0), tile_uv(1, s0 + w, 0), tile_uv(1, s0 + w, t1), tile_uv(1, s0, t1)], False)
 
 
-def frame(lon, lat):
-    up = Vector((math.cos(lat) * math.cos(lon), math.cos(lat) * math.sin(lon), math.sin(lat)))
-    east = Vector((-math.sin(lon), math.cos(lon), 0))
-    north = up.cross(east)
-    return up * R, east, north, up
+def sph(lon, lat, r):
+    lo, la = math.radians(lon), math.radians(lat)
+    return Vector((r * math.cos(la) * math.cos(lo), r * math.cos(la) * math.sin(lo), r * math.sin(la)))
 
 
-def greebles(b):
+def raised(b, panels):
+    """
+    The 'raised' panels of the layout, modelled: a curved plate standing a little proud of the hull, showing exactly
+    that panel of the texture (inset by the seam, so the seam shows as a groove round it), with plain sides.
+    """
     n = 0
-    lat0 = math.degrees(LAT0)
-    # Along both edges of the trench: a row of small blocks with gaps.
-    for sign in (1, -1):
-        lon = 0.0
-        while lon < 360 - 4:
-            a, c = rng.uniform(0.008, 0.02), rng.uniform(0.008, 0.014)
-            lat = sign * (lat0 + 1.6 + math.degrees(c / R) + rng.uniform(0.2, 1.2))
-            p, e, no, up = frame(math.radians(lon), math.radians(lat))
-            box(b, p, e, no, up, a, c, rng.uniform(0.008, 0.02), (max(a, c) ** 2) / (2 * R) + 0.003)
-            n += 1
-            lon += math.degrees(2 * a / R) + rng.uniform(2, 9)
-    # Scattered over the hull, clear of the lug: blocks, and a few taller towers.
-    tries = 0
-    placed = []
-    while n < 165 and tries < 5000:
-        tries += 1
-        lat = math.degrees(math.asin(rng.uniform(-0.97, 0.9)))
-        if abs(lat) < lat0 + 5: continue
-        lon = rng.uniform(0, 360)
-        tower = rng.random() < 0.08
-        a = rng.uniform(0.008, 0.013) if tower else rng.uniform(0.01, 0.035)
-        c = rng.uniform(0.008, 0.013) if tower else rng.uniform(0.01, 0.03)
-        h = rng.uniform(0.035, 0.06) if tower else rng.uniform(0.006, 0.025)
-        p, e, no, up = frame(math.radians(lon), math.radians(lat))
-        if any((p - q).length < r + max(a, c) + 0.01 for q, r in placed): continue
-        placed.append((p, max(a, c)))
-        box(b, p, e, no, up, a, c, h, (max(a, c) ** 2) / (2 * R) + 0.003)
+    for la, lb, oa, ob, kind, _ in panels:
+        if kind != 'raised': continue
+        h = rng.uniform(0.008, 0.014)
+        # Inset by the seam on the panel's left and bottom (where the texture draws it), a hair elsewhere.
+        oa2, ob2 = oa + (LINE + 0.6) * PX_X, ob - 0.6 * PX_X
+        la2, lb2 = la + (LINE + 0.6) * PX_Y, lb - 0.6 * PX_Y
+        nlo = max(2, math.ceil((ob2 - oa2) / 4.5)); nla = max(1, math.ceil((lb2 - la2) / 4.5))
+        lons = [oa2 + (ob2 - oa2) * i / nlo for i in range(nlo + 1)]
+        lats = [la2 + (lb2 - la2) * j / nla for j in range(nla + 1)]
+        top = [[b.v(sph(lo, lt, R + h)) for lo in lons] for lt in lats]
+        for j in range(nla):
+            for i in range(nlo):
+                quad = [top[j][i], top[j][i + 1], top[j + 1][i + 1], top[j + 1][i]]
+                uvs = [uv_hull(math.radians(lons[i]), math.radians(lats[j])), uv_hull(math.radians(lons[i + 1]), math.radians(lats[j])),
+                       uv_hull(math.radians(lons[i + 1]), math.radians(lats[j + 1])), uv_hull(math.radians(lons[i]), math.radians(lats[j + 1]))]
+                b.face(quad, uvs, True)
+        # Sides, from just under the hull's facets up to the plate, round the edge (counter-clockwise seen from outside).
+        edge = [(lons[i], lats[0]) for i in range(nlo)] + [(lons[-1], lats[j]) for j in range(nla)] + \
+               [(lons[i], lats[-1]) for i in range(nlo, 0, -1)] + [(lons[0], lats[j]) for j in range(nla, 0, -1)]
+        lo_ring = [b.v(sph(lo, lt, R - 0.004)) for lo, lt in edge]
+        hi_ring = [b.v(sph(lo, lt, R + h)) for lo, lt in edge]
+        m = len(edge)
+        for k in range(m):
+            k2 = (k + 1) % m
+            dist = (lo_ring[k2].co - lo_ring[k].co).length
+            b.face([lo_ring[k], lo_ring[k2], hi_ring[k2], hi_ring[k]],
+                   [tile_uv(1, 0, 0), tile_uv(1, min(1, dist * 2), 0), tile_uv(1, min(1, dist * 2), 0.1), tile_uv(1, 0, 0.1)], False)
         n += 1
     return n
 
@@ -333,17 +339,18 @@ def main():
     out = os.path.abspath(o['out'])
     os.makedirs(out, exist_ok=True)
     mulib.reset()
-    main_img, nrm, glow = make_textures(out)
+    panels = layout()
+    main_img, nrm, glow = make_textures(out, panels)
     mat = mulib.ksp_material('WarpBomb', main_img, nrm, glow)
 
     b = Builder()
-    hull(b); trench(b); n = greebles(b); lug(b)
+    hull(b); trench(b); n = raised(b, panels); lug(b)
     tris = sum(len(f.verts) - 2 for f in b.bm.faces)
     model = mulib.root('model')
     body = mulib.mesh_object('WarpBomb', b.bm, mat, model)
     mulib.sphere_collider(model, R)
     mulib.box_collider(model, (-0.11, -0.11, 0.6), (0.11, 0.11, LUG_TOP))
-    print(f'Warp bomb: {tris} triangles, {n} blocks.')
+    print(f'Warp bomb: {tris} triangles, {n} raised panels.')
     mulib.export(model, os.path.join(out, 'model.mu'))
 
     if o['preview']:

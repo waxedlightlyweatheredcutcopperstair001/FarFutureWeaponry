@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.1
+
+- **Warp Bomb** model, simpler and more in keeping with KSP:
+  - Plain panels only: the busy patchwork panels are gone.
+  - The small blocks and towers are gone. Instead, some of the larger panels stand slightly proud of the hull,
+    exactly where the texture draws them.
+  - The glowing ring is one clean, unbroken strip (no thin dark lines across it).
+
 ## 0.10.0
 
 The first of the mod's own models.
