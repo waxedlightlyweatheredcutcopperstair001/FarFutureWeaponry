@@ -9,9 +9,10 @@ in `package/`.
 | Path | What |
 |---|---|
 | `src/Core/` | Pure logic, no Unity or KSP (unit-tested): antimatter energy, containment, effect curves, trail points, colours, charge sound, field timelines and pull (`Fields`), shatter grouping, field sounds, tracking and lead (`Tracking`), rust, darts, slowing |
-| `src/Ksp/` | KSP glue: `Bda` (BDArmory by reflection), `Vfxr` (VFX Reconfigured's EffectsApi by reflection), `Startup` (dependency checks), `ImpactFlashes`, `BulletTrails`, `ModuleFFWChargeSparks`, `ModuleFFWContainment`, `ModuleFFWBomb` + `ModuleFFWTachyonShield`, `FieldManager` (bomb fields and warhead effects: physics, looks, sounds), `TimeStop`, `ShatterFx`, `Targets` + `ModuleFFWSeeker` (FFW tracking), `ModuleFFWPhase`, `ModuleFFWRamjet`, `Darts` (`ModuleFFWDarts`, `DartManager`), `TachyonHit` + `ModuleFFWRust`, `ModuleFFWRepulsor`, `RibbonTrail` + `ModuleFFWTrail`, `Overlays` (`FfwShaders` bundle loader, `PartOverlay`: a second material drawn over a part's meshes), `HarmonyBridge`, `ForceField`, `Cloak`, `Holograms`, `Countermeasures` (scrambler, hop drive, screen glitch), `Visuals` (procedural textures/meshes/materials) |
+| `src/Ksp/` | KSP glue: `Bda` (BDArmory by reflection), `Vfxr` (VFX Reconfigured's EffectsApi by reflection), `Startup` (dependency checks), `ImpactFlashes`, `BulletTrails`, `ModuleFFWChargeSparks`, `ModuleFFWContainment`, `ModuleFFWBomb` + `ModuleFFWTachyonShield`, `ModuleFFWArmGlow` (emissive glow once a bomb is armed), `ModuleFFWSensor`, `FieldManager` (bomb fields and warhead effects: physics, looks, sounds), `TimeStop`, `ShatterFx`, `Targets` + `ModuleFFWSeeker` (FFW tracking), `ModuleFFWPhase`, `ModuleFFWRamjet`, `Darts` (`ModuleFFWDarts`, `DartManager`), `TachyonHit` + `ModuleFFWRust`, `ModuleFFWRepulsor`, `RibbonTrail` + `ModuleFFWTrail`, `Overlays` (`FfwShaders` bundle loader, `PartOverlay`: a second material drawn over a part's meshes), `HarmonyBridge`, `ForceField`, `Cloak`, `Holograms`, `Countermeasures` (scrambler, hop drive, screen glitch), `Visuals` (procedural textures/meshes/materials) |
 | `configs/` | Shipped configs: `Parts/<Part>/part.cfg`, `Bullets.cfg`, `Resources.cfg` (fallback Antimatter definition), `Effects.cfg` (flash, hit-effect and trail definitions), `Rust.cfg` (ModuleFFWRust on every part) |
-| `assets/` | Borrowed placeholder models, textures, sounds and their licences, laid out as in the mod folder. Made by `tools/import_assets.py`; committed |
+| `assets/` | Models, textures, sounds and licences, laid out as in the mod folder; committed. Borrowed placeholders come from `tools/import_assets.py`; the mod's own models from `tools/model.py` |
+| `models/` | The mod's own models, built in code: `models/<Part>/build.py` (a Blender script: bmesh geometry, numpy-painted textures, .mu export through io_object_mu, preview renders) and `mulib.py` (shared helpers) |
 | `package/` | Player README and CHANGELOG (shipped) |
 | `shaders/` | Unity project for the plugin's shaders (`RustOverlay`, `ContourWave`, `PhaseLens`, `ShieldOverlay`, `CloakOverlay`, `Hologram`; `Editor/BuildBundle.cs`) |
 | `tests/` | Console test program for `src/Core` |
@@ -73,6 +74,14 @@ Windows: `py tools\make.py --deploy`. Single steps: `python3 tools/build.py`;
 - **Antimatter** uses Far Future Technologies' units (36 GJ/unit) and the same containment model (a flat EC/s cost;
   without it, annihilation heats the part). `Resources.cfg` defines Antimatter only when the Community Resource Pack
   doesn't.
+
+## Models
+
+`python3 tools/model.py <Part> [--preview]` runs `models/<Part>/build.py` in Blender 4.5 (background) and writes
+`assets/Parts/<Part>/` (`model.mu` and its textures; preview renders in `build/previews/<Part>/` with `--preview`).
+Needs Blender with the io_object_mu add-on. Nothing is modelled by hand, so a model is changed by editing its script
+and rebuilding. Blender's Z is KSP's Y (io_object_mu converts). Materials use KSP's own shaders (`mulib.ksp_material`);
+normal maps are named `*_NRM.png` so KSP loads them as such. `import_assets.py` leaves these parts' folders alone.
 
 ## Upstream assets
 

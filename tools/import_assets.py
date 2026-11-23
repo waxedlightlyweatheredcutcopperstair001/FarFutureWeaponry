@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Copy the borrowed placeholder models, textures and sounds into assets/ (committed), tinting some textures.
 
+Parts with their own models (models/<Part>/build.py) are left alone: tools/model.py builds those.
+
 The placeholder parts reuse models from BDArmory 1.13.1 (CC-BY-SA 2.0), BDArmory Extended 1.5.3 (CC-BY-SA 4.0) and
 North Kerbin Dynamics Renewed 0.1.1 (CC-BY-SA 4.0). They are copied, not referenced, because BDArmory keeps them under
 GameData/BDArmory/ and BDArmory Lite under GameData/BDArmoryLite/: a copy works with both.
@@ -76,9 +78,6 @@ MANIFEST = [
     ('BDA', 'Parts/mk82Bomb/texture.png', 'Parts/GravityBomb/texture.png', VIOLET),
     ('BDA', 'Parts/mk82Bomb/model.mu', 'Parts/TachyonBomb/model.mu', None),
     ('BDA', 'Parts/mk82Bomb/texture.png', 'Parts/TachyonBomb/texture.png', GREEN),
-    # Warp bomb: NKDR's B-83 (until its own sphere model).
-    ('NKDR', 'parts/B-83 Nuclear/model.mu', 'Parts/WarpBomb/model.mu', None),
-    ('NKDR', 'parts/B-83 Nuclear/B-83.png', 'Parts/WarpBomb/B-83.png', NAVY),
     # Antimatter bomb: NKDR's Castle Bravo.
     ('NKDR', 'parts/Castle Bravo/model.mu', 'Parts/AntimatterBomb/model.mu', None),
     ('NKDR', 'parts/Castle Bravo/COLOR Castle Bravo.png', 'Parts/AntimatterBomb/COLOR Castle Bravo.png', MAGENTA),
@@ -189,7 +188,16 @@ def main():
     missing = [f'{s}/{src}' for s, src, _, _ in MANIFEST if not (inputs / SOURCES[s] / src).is_file()]
     if missing:
         sys.exit('Missing inputs (under ' + str(inputs) + '):\n  ' + '\n  '.join(missing))
-    shutil.rmtree(ASSETS, ignore_errors=True)
+    # Everything borrowed is replaced; the folders of parts with their own models (models/<Part>/build.py, built
+    # into assets/ by tools/model.py) are kept.
+    own = {d.name for d in (ROOT / 'models').iterdir() if (d / 'build.py').is_file()} if (ROOT / 'models').is_dir() else set()
+    if ASSETS.is_dir():
+        for item in ASSETS.iterdir():
+            if item.name != 'Parts':
+                shutil.rmtree(item) if item.is_dir() else item.unlink()
+        for part in (ASSETS / 'Parts').iterdir() if (ASSETS / 'Parts').is_dir() else []:
+            if part.name not in own:
+                shutil.rmtree(part)
     for s, src, dst, colour in MANIFEST:
         data = (inputs / SOURCES[s] / src).read_bytes()
         if colour:

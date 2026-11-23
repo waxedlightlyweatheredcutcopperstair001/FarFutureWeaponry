@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0
+
+The first of the mod's own models.
+
+- **Warp Bomb**: a new 1.25 m model replaces the borrowed placeholder: a sphere of grey plating in latitude bands,
+  covered in blocks and towers, with a dark trench round its equator and a lug on top for the rail. The trench
+  glows a pulsing blue once the bomb is dropped and armed. **Craft already carrying a Warp Bomb need it re-attached**
+  (its attach point moved).
+
 ## 0.9.1
 
 - **Hologram Generator**:
