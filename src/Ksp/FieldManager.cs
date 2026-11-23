@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using FarFutureWeaponry.Core;
 using UnityEngine;
 
@@ -56,14 +57,6 @@ namespace FarFutureWeaponry
 
         // ---- State ----
 
-        sealed class Frozen
-        {
-            public readonly Dictionary<Part, (Vector3d vel, Vector3 ang, bool wasKinematic)> Parts = new Dictionary<Part, (Vector3d, Vector3, bool)>();
-            public readonly List<(Animation anim, AnimationState state, float speed)> Anims = new List<(Animation, AnimationState, float)>();
-            public readonly List<(Animator animator, float speed)> Animators = new List<(Animator, float)>();
-            public KerbalEVA Eva;
-        }
-
         sealed class Field
         {
             public FieldSpec Spec;
@@ -83,8 +76,12 @@ namespace FarFutureWeaponry
             public ParticleSystem Air, Shimmer, NearShimmer;
             public readonly List<Material> Materials = new List<Material>();
             public List<DestructibleBuilding> Buildings;
-            public readonly Dictionary<Vessel, Frozen> Frozen = new Dictionary<Vessel, Frozen>();
-            public readonly HashSet<Part> FrozenParts = new HashSet<Part>();   // (a piece breaking off a frozen craft is already frozen)
+            public readonly List<TimeStop> Caught = new List<TimeStop>();
+            public readonly HashSet<Vessel> CaughtVessels = new HashSet<Vessel>();
+            public readonly HashSet<Part> CaughtParts = new HashSet<Part>();   // (a piece breaking off a caught craft is caught already)
+            public readonly List<(Behaviour fx, PropertyInfo start, float at)> PausedBlasts = new List<(Behaviour, PropertyInfo, float)>();
+            public ShatterFx Shatter;
+            public bool Removed;
         }
 
         sealed class Flash
@@ -97,7 +94,8 @@ namespace FarFutureWeaponry
 
         readonly List<Field> fields = new List<Field>();
         readonly List<Flash> flashes = new List<Flash>();
-        readonly List<(ShatterFx fx, float start)> shatters = new List<(ShatterFx, float)>();
+        readonly List<ShatterFx> duds = new List<ShatterFx>();   // tachyon bombs back together, lying where they fell
+        readonly List<(Behaviour fx, PropertyInfo start)> live = new List<(Behaviour, PropertyInfo)>();
         readonly List<Part> doomed = new List<Part>();
 
         void Awake()
@@ -111,6 +109,7 @@ namespace FarFutureWeaponry
         {
             Bda.Init();
             Vfxr.Init();
+            TimeStop.RestVelocity = p => RestVelocity(p);
         }
 
         void OnSceneSwitch(GameEvents.FromToAction<GameScenes, GameScenes> fromTo) => SceneChanging = true;
@@ -157,11 +156,7 @@ namespace FarFutureWeaponry
             {
                 f.Shimmer = ShimmerParticles(f, false);
                 f.NearShimmer = ShimmerParticles(f, true);
-                if (bomb.shatter)
-                {
-                    ShatterFx fx = ShatterFx.Capture(bomb.part, (float)spec.Duration);
-                    if (fx != null) shatters.Add((fx, now));
-                }
+                if (bomb.shatter) f.Shatter = ShatterFx.Capture(bomb.part);
             }
             if (spec.Kind == FieldKind.Warp && spec.InnerRadius > 0)
             {
@@ -307,7 +302,7 @@ namespace FarFutureWeaponry
                     foreach (Vessel v in FlightGlobals.VesselsLoaded)
                     {
                         if (v == null || v.packed) continue;
-                        if (look.Freezing) { Freeze(f, v, centre); continue; }
+                        if (look.Freezing) { Catch(f, v, centre); continue; }
                         for (int k = 0; k < v.parts.Count; k++)
                         {
                             Part p = v.parts[k];
@@ -326,8 +321,12 @@ namespace FarFutureWeaponry
                         foreach (DestructibleBuilding b in f.Buildings)
                             if (b != null && !b.IsDestroyed && (b.transform.position - centre).sqrMagnitude < f.Spec.InnerRadius * f.Spec.InnerRadius) b.Demolish();
                 }
-                if (look.Freezing) Hold(f);
-                else if (f.Frozen.Count > 0) ReleaseAll(f);
+                if (f.Spec.Kind == FieldKind.Tachyon)
+                {
+                    if (look.Slowed) foreach (TimeStop ts in f.Caught) ts.Physics(look.Speed);
+                    else if (f.Caught.Count > 0) ReleaseAll(f);
+                    PauseBlasts(f, centre, look);
+                }
 
                 if (f.Spec.Kind == FieldKind.Gravity && !f.Blasted && t >= f.Spec.Duration)
                 {
@@ -348,84 +347,65 @@ namespace FarFutureWeaponry
             }
         }
 
-        /// <summary>
-        /// Freeze a craft whose centre is inside the field: every part's rigidbody made kinematic (no gravity, no forces,
-        /// no drift), its velocities kept for the release; a kerbal on EVA can't move, and every kerbal's animations
-        /// (EVA and in the cockpits) stop.
-        /// </summary>
-        void Freeze(Field f, Vessel v, Vector3 centre)
+        /// <summary>A craft whose centre is inside the field is caught (unless it has an active Tachyon-be-gone).</summary>
+        void Catch(Field f, Vessel v, Vector3 centre)
         {
-            if (f.Frozen.ContainsKey(v)) return;
+            if (f.CaughtVessels.Contains(v)) return;
             Vector3 d = v.CoM - centre;
             if (!Fields.Inside(f.Spec.Radius, d.x, d.y, d.z) || ModuleFFWTachyonShield.Protects(v)) return;
-            var fr = new Frozen();
-            foreach (Part p in v.parts)
-            {
-                if (p == null || p.rb == null || !f.FrozenParts.Add(p)) continue;
-                fr.Parts[p] = ((Vector3d)p.rb.velocity - RestVelocity(p.rb.position), p.rb.angularVelocity, p.rb.isKinematic);
-                p.rb.velocity = Vector3.zero; p.rb.angularVelocity = Vector3.zero;
-                p.rb.isKinematic = true;
-                foreach (ProtoCrewMember c in p.protoModuleCrew)
-                    if (c?.KerbalRef != null) PauseAnimations(fr, c.KerbalRef.gameObject);
-            }
-            if (v.isEVA)
-            {
-                fr.Eva = v.evaController;
-                if (fr.Eva != null) { fr.Eva.enabled = false; PauseAnimations(fr, fr.Eva.gameObject); }
-            }
-            f.Frozen[v] = fr;
-            Log.Info($"Tachyon field froze {v.vesselName} ({v.srfSpeed:0} m/s{(v.isEVA ? ", kerbal on EVA" : "")}).");
-        }
-
-        static void PauseAnimations(Frozen fr, GameObject go)
-        {
-            foreach (Animation a in go.GetComponentsInChildren<Animation>())
-                foreach (AnimationState s in a) { fr.Anims.Add((a, s, s.speed)); s.speed = 0; }
-            foreach (Animator a in go.GetComponentsInChildren<Animator>()) { fr.Animators.Add((a, a.speed)); a.speed = 0; }
-        }
-
-        /// <summary>While frozen: keep it so (KSP may have changed a part's rigidbody, e.g. after a joint broke).</summary>
-        static void Hold(Field f)
-        {
-            foreach (var kv in f.Frozen)
-            {
-                if (kv.Key == null || kv.Key.packed) continue;
-                foreach (var pv in kv.Value.Parts)
-                {
-                    Part p = pv.Key;
-                    if (p == null || p.rb == null || p.rb.isKinematic) continue;
-                    p.rb.velocity = RestVelocity(p.rb.position); p.rb.angularVelocity = Vector3.zero;
-                    p.rb.isKinematic = true;
-                }
-            }
+            f.CaughtVessels.Add(v);
+            var ts = new TimeStop(v, f.CaughtParts);
+            if (ts.Parts == 0) return;
+            f.Caught.Add(ts);
+            Log.Info($"Tachyon field caught {v.vesselName} ({v.srfSpeed:0} m/s, {ts.Parts} parts{(v.isEVA ? ", kerbal on EVA" : "")}).");
         }
 
         static void ReleaseAll(Field f)
         {
-            foreach (var kv in f.Frozen)
+            foreach (TimeStop ts in f.Caught)
             {
-                Frozen fr = kv.Value;
-                foreach (var pv in fr.Parts)
-                {
-                    Part p = pv.Key;
-                    if (p == null || p.rb == null) continue;
-                    if (kv.Key != null && !kv.Key.packed) p.rb.isKinematic = pv.Value.wasKinematic;
-                    if (!p.rb.isKinematic)
-                    {
-                        p.rb.velocity = RestVelocity(p.rb.position) + pv.Value.vel;
-                        p.rb.angularVelocity = pv.Value.ang;
-                    }
-                }
-                foreach (var (anim, state, speed) in fr.Anims) if (anim != null && state != null) state.speed = speed;
-                foreach (var (animator, speed) in fr.Animators) if (animator != null) animator.speed = speed;
-                if (fr.Eva != null) fr.Eva.enabled = true;
-                if (kv.Key != null) Log.Info($"Tachyon field released {kv.Key.vesselName}.");
+                ts.Release();
+                if (ts.Vessel != null) Log.Info($"Tachyon field released {ts.Vessel.vesselName}.");
             }
-            f.Frozen.Clear();
-            f.FrozenParts.Clear();
+            f.Caught.Clear();
+            f.CaughtVessels.Clear();
+            f.CaughtParts.Clear();
         }
 
-        // ---- Looks ----
+        /// <summary>
+        /// BDArmory explosions inside the field stop while time is stopped (their damage included: they work out their
+        /// blast from the time since they went off, so that clock is moved on by the pause when they resume).
+        /// </summary>
+        void PauseBlasts(Field f, Vector3 centre, FieldLook look)
+        {
+            float now = Time.time;
+            if (look.Slowed && look.Speed < 0.05)
+            {
+                Bda.LiveExplosions(live);
+                float r2 = (float)(f.Spec.Radius * f.Spec.Radius);
+                foreach (var (fx, start) in live)
+                    if (fx.enabled && (fx.transform.position - centre).sqrMagnitude <= r2)
+                    {
+                        fx.enabled = false;
+                        f.PausedBlasts.Add((fx, start, now));
+                    }
+            }
+            else ResumeBlasts(f);
+        }
+
+        static void ResumeBlasts(Field f)
+        {
+            float now = Time.time;
+            foreach (var (fx, start, at) in f.PausedBlasts)
+            {
+                if (fx == null) continue;
+                try { start.SetValue(fx, (float)start.GetValue(fx, null) + (now - at), null); } catch { }
+                fx.enabled = true;
+            }
+            f.PausedBlasts.Clear();
+        }
+
+        // ---- Looks ----        // ---- Looks ----
 
         void LateUpdate()
         {
@@ -440,11 +420,21 @@ namespace FarFutureWeaponry
                 if (look.LensStrength > 1e-3 || look.RingAmp > 1e-3)
                     Vfxr.LensCore(centre, (float)look.LensRadius, (float)look.LensStrength, (float)look.CoreShare, (float)look.RingRadius, (float)look.RingAmp);
                 if (look.InRingAmp > 1e-3)
-                    Vfxr.LensCore(centre, (float)look.InRingRadius, 0, 0, (float)look.InRingRadius, (float)look.InRingAmp);
+                    Vfxr.LensCore(centre, (float)f.Spec.Radius, 0, 0, (float)look.InRingRadius, (float)look.InRingAmp);
                 if (look.Flash > 0.003)
                     Vfxr.Glow(centre, (float)look.FlashRadius, (float)look.Flash, 0.2f, f.Edge, f.Core);
                 if (f.Light != null) { f.Light.transform.position = centre; f.Light.intensity = Mathf.Min(8, (float)look.Flash * 3); }
                 if (f.Sphere != null) DrawSphere(f, look, centre, cam, t);
+                if (f.Spec.Kind == FieldKind.Tachyon)
+                {
+                    if (look.Slowed) Vfxr.TimeScale(centre, (float)f.Spec.Radius, (float)look.Speed);
+                    foreach (TimeStop ts in f.Caught) ts.Effects(look.Speed, Time.deltaTime);
+                    if (f.Shatter != null)
+                    {
+                        double x = System.Math.Min(1, look.Tau / 0.35);
+                        f.Shatter.Tick((float)(1 - (1 - x) * (1 - x) * (1 - x)), !look.Slowed, Time.deltaTime);
+                    }
+                }
                 if (f.Air != null) { var em = f.Air.emission; em.rateOverTime = look.Pulling ? (f.Spec.Kind == FieldKind.Warp ? 260 : 160) : 0; }
                 if (f.Shimmer != null) { var em = f.Shimmer.emission; em.rateOverTime = look.Freezing ? 900 : 0; }
                 if (f.NearShimmer != null)
@@ -469,18 +459,23 @@ namespace FarFutureWeaponry
                 Vfxr.Glow(at, fl.Radius, p, 0.2f, fl.Edge, fl.Core);
                 if (fl.Light != null) { fl.Light.transform.position = at; fl.Light.intensity = Mathf.Min(8, p * 3); }
             }
-            for (int i = shatters.Count - 1; i >= 0; i--)
+            for (int i = duds.Count - 1; i >= 0; i--)
             {
-                var (fx, start) = shatters[i];
-                fx.Tick(now - start, Time.deltaTime);
-                if (fx.Done) shatters.RemoveAt(i);
+                duds[i].Tick(0, true, Time.deltaTime);
+                if (duds[i].Done) duds.RemoveAt(i);
             }
         }
+
+        static readonly Color TachyonTint = new Color(0.55f, 1f, 0.62f), TachyonEdge = new Color(0.3f, 1f, 0.45f);
 
         static void DrawSphere(Field f, FieldLook look, Vector3 centre, Camera cam, float t)
         {
             float r = (float)look.SphereRadius;
             bool on = r > 0.5f && look.SphereAlpha > 0.003;
+            // The tachyon field through VFX Reconfigured: everything inside tinted green, a crisp edge seen from inside
+            // and out. (Its own sphere below is the fallback.)
+            if (on && f.Spec.Kind == FieldKind.Tachyon &&
+                Vfxr.TintSphere(centre, r, TachyonTint, 0.6f * (float)look.SphereAlpha, TachyonEdge, 1.2f * (float)look.SphereAlpha)) on = false;
             f.SphereT.gameObject.SetActive(on);
             if (!on) return;
             f.SphereT.localScale = Vector3.one * r;
@@ -492,7 +487,8 @@ namespace FarFutureWeaponry
                 Vector3 n = f.SphereNormals[i];
                 Vector3 view = (n - eye).normalized;
                 float rim = 1 - Mathf.Abs(Vector3.Dot(n, view));
-                float k = a * (0.05f + 0.95f * rim * rim * rim) * (0.85f + 0.15f * Mathf.Sin(n.y * 25 + t * 3));
+                // (a firm shell, readable from inside too, with a crisp rim)
+                float k = a * (0.2f + 0.8f * Mathf.Pow(rim, 6) + 0.3f * Mathf.Pow(rim, 40)) * (0.85f + 0.15f * Mathf.Sin(n.y * 25 + t * 3));
                 f.SphereColours[i] = new Color(c.r * k, c.g * k, c.b * k, k);
             }
             f.Sphere.colors = f.SphereColours;
@@ -500,7 +496,10 @@ namespace FarFutureWeaponry
 
         void Remove(Field f)
         {
-            if (f.Frozen.Count > 0) ReleaseAll(f);
+            f.Removed = true;
+            if (f.Caught.Count > 0) ReleaseAll(f);
+            ResumeBlasts(f);
+            if (f.Shatter != null) { if (!SceneChanging && !f.Shatter.Done) { f.Shatter.Tick(0, true, 0); duds.Add(f.Shatter); } else f.Shatter.Clear(); f.Shatter = null; }
             if (f.Light != null) Destroy(f.Light.gameObject);
             if (f.SphereT != null) f.SphereT.gameObject.SetActive(false);
             foreach (ParticleSystem ps in new[] { f.Air, f.Shimmer, f.NearShimmer })
@@ -519,8 +518,8 @@ namespace FarFutureWeaponry
             fields.Clear();
             foreach (Flash fl in flashes) if (fl.Light != null) Destroy(fl.Light.gameObject);
             flashes.Clear();
-            foreach (var (fx, _) in shatters) fx.Clear();
-            shatters.Clear();
+            foreach (ShatterFx d in duds) d.Clear();
+            duds.Clear();
             if (Instance == this) Instance = null;
         }
     }

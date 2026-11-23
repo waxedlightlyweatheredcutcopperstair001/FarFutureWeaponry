@@ -31,10 +31,18 @@ namespace FarFutureWeaponry
         [KSPField] public float flashSeconds = 1.5f;
         [KSPField] public bool shatter = false;
 
+        // The tachyon field's length, set in the part's window (5 to 60 s).
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Freeze time", guiUnits = " s"),
+         UI_FloatRange(minValue = 5, maxValue = 60, stepIncrement = 1, scene = UI_Scene.All, affectSymCounterparts = UI_Scene.All)]
+        public float freezeSeconds = 10;
+
         bool fired, subscribed;
 
         public override void OnStart(StartState state)
         {
+            bool tachyon = FieldSpec.Parse(effect) == FieldKind.Tachyon;
+            Fields[nameof(freezeSeconds)].guiActive = tachyon;
+            Fields[nameof(freezeSeconds)].guiActiveEditor = tachyon;
             if (!HighLogic.LoadedSceneIsFlight) return;
             Bda.Init();
             Vfxr.Init();
@@ -54,7 +62,7 @@ namespace FarFutureWeaponry
                 case FieldKind.Warp:
                     return $"<b>Black hole:</b> pulls everything within {radius:0} m at {accelG:0.#} g for {duration:0.#} s and destroys anything within {innerRadius:0} m.";
                 case FieldKind.Tachyon:
-                    return $"<b>Tachyon field:</b> freezes every craft within {radius:0} m for {duration:0.#} s, then gives each its speed back. Craft with an active Tachyon-be-gone are immune.";
+                    return $"<b>Tachyon field:</b> time stops for every craft within {radius:0} m for {freezeSeconds:0} s (5 to 60, set in the part's window), then gives each its speed back. Craft with an active Tachyon-be-gone are immune.";
             }
             return "";
         }
@@ -62,7 +70,7 @@ namespace FarFutureWeaponry
         FieldSpec Spec() => new FieldSpec
         {
             Kind = FieldSpec.Parse(effect), Radius = radius, InnerRadius = innerRadius, AccelG = accelG,
-            Duration = duration, BlastTntKg = blastTnt
+            Duration = FieldSpec.Parse(effect) == FieldKind.Tachyon ? Mathf.Clamp(freezeSeconds, 5, 60) : duration, BlastTntKg = blastTnt
         };
 
         void OnPartDie(Part p)

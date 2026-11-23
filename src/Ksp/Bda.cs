@@ -125,6 +125,45 @@ namespace FarFutureWeaponry
             return true;
         }
 
+        static IDictionary nukePools;
+        static Type nukeFxType;
+        static PropertyInfo nukeStartTime;
+        static bool nukeLooked;
+
+        /// <summary>
+        /// Every live BDArmory explosion (ExplosionFx and NukeFX components, from their pools): to pause their damage,
+        /// disable the component, and on resuming move StartTime on by the pause (they time everything from it).
+        /// </summary>
+        public static void LiveExplosions(List<(Behaviour fx, PropertyInfo startTime)> into)
+        {
+            into.Clear();
+            if (!nukeLooked)
+            {
+                nukeLooked = true;
+                foreach (var la in AssemblyLoader.loadedAssemblies)
+                    if (la.name == "BDArmory") { nukeFxType = la.assembly.GetType("BDArmory.FX.NukeFX"); break; }
+                nukePools = nukeFxType?.GetField("nukePool", Any)?.GetValue(null) as IDictionary;
+                nukeStartTime = nukeFxType?.GetProperty("StartTime", Any);
+            }
+            Collect(explosionPools, explosionFxType, explosionStartTime, into);
+            Collect(nukePools, nukeFxType, nukeStartTime, into);
+        }
+
+        static void Collect(IDictionary pools, Type type, PropertyInfo start, List<(Behaviour, PropertyInfo)> into)
+        {
+            if (pools == null || type == null || start == null || poolList == null) return;
+            foreach (object pool in pools.Values)
+            {
+                if (pool == null || (pool is UnityEngine.Object o && o == null)) continue;
+                if (!(poolList.GetValue(pool) is IList list)) continue;
+                foreach (object item in list)
+                {
+                    if (!(item is GameObject go) || go == null || !go.activeInHierarchy) continue;
+                    if (go.GetComponent(type) is Behaviour b && b != null) into.Add((b, start));
+                }
+            }
+        }
+
         // ---- Bullets ----
 
         public static bool BulletsReadable => bulletManagerInstance != null && activeBulletsField != null && bulletInfoField != null && bulletInfoName != null && bulletTimeAlive != null;

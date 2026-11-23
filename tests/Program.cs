@@ -163,8 +163,8 @@ static class Program
         Check(inRange, "samples within [-1, 1]");
         Check(Math.Abs(s[0]) < 1e-3 && Math.Abs(s[s.Length - 1]) < 1e-3, "starts and ends silent (no clicks)");
         double early = Rms(s, 4410, 22050), late = Rms(s, 66150, 85000);
-        Check(late > early * 1.5, $"builds up towards the shot (rms {early:0.000} -> {late:0.000})");
-        Check(Rms(s, 22050, 66150) > 0.05, "audible through the middle of the charge");
+        Check(late > early * 1.1, $"builds up towards the shot (rms {early:0.000} -> {late:0.000})");
+        Check(early > 0.15 && Rms(s, 22050, 66150) > 0.15, $"loud from the start and through the middle (rms {early:0.000})");
         float[] again = ChargeSound.Generate(44100, 2f, 7), other = ChargeSound.Generate(44100, 2f, 8);
         bool same = true, differs = false;
         for (int i = 0; i < s.Length; i++) { if (s[i] != again[i]) same = false; if (s[i] != other[i]) differs = true; }
@@ -216,13 +216,28 @@ static class Program
         var w3 = Fields.At(warp, 3); var w33 = Fields.At(warp, 3.2);
         Check(w3.InRingAmp > 0 && w33.InRingRadius < w3.InRingRadius && w3.CoreShare > 0.1, "warp: air sweeps inward round a real black hole");
 
-        // Tachyon: sphere grows in half a second, holds at 500 m, closes; freezing only during the 10 s.
+        // Tachyon: time slows to a stop over 1.2 s, holds, returns over 2 s; the bomb's clock runs forward, holds, plays back.
         var tach = new FieldSpec { Kind = FieldKind.Tachyon, Radius = 500, Duration = 10 };
-        var t0 = Fields.At(tach, 0.02); var t1 = Fields.At(tach, 1); var t9 = Fields.At(tach, 9.9); var t10 = Fields.At(tach, 10.3); var t11 = Fields.At(tach, 10.65);
-        Check(t0.Freezing && t0.Flash > 2 && t0.SphereRadius < 50, "tachyon: freezes at once, green flash, sphere starting");
-        Check(Near(t1.SphereRadius, 500, 1e-9) && t9.Freezing && Near(t9.SphereRadius, 500, 1e-9), "tachyon: holds at full size");
-        Check(!t10.Freezing && t10.SphereRadius < 500 && t10.SphereRadius > 0, "tachyon: released at 10 s, sphere closing");
-        Check(t11.SphereRadius == 0 && t11.Flash > 0.5, "tachyon: a flash as the sphere closes");
+        double D = tach.Duration;
+        Check(Fields.TimeSpeed(0, D) == 1 && Fields.TimeSpeed(0.6, D) > 0.3 && Fields.TimeSpeed(0.6, D) < 0.7 && Fields.TimeSpeed(1.2, D) == 0 && Fields.TimeSpeed(5, D) == 0,
+              "time slows smoothly to a stop and holds");
+        Check(Fields.TimeSpeed(10, D) == 0 && Fields.TimeSpeed(11, D) > 0.3 && Fields.TimeSpeed(11, D) < 0.7 && Fields.TimeSpeed(12, D) == 1 && Fields.TimeSpeed(20, D) == 1,
+              "time comes back smoothly over 2 s");
+        bool monotone = true; double prevS = 2;
+        for (double t = 0; t < 1.2; t += 0.01) { double v = Fields.TimeSpeed(t, D); if (v > prevS + 1e-12) monotone = false; prevS = v; }
+        Check(monotone, "slowing never speeds up");
+        double held = Fields.BombClock(5, D);
+        Check(Near(held, Fields.SlowDown / 2, 1e-9) && Near(Fields.BombClock(1.2, D), held, 1e-9), "the bomb's clock stops at half the slow-down (" + held + ")");
+        Check(Fields.BombClock(0.3, D) < Fields.BombClock(0.6, D) && Fields.BombClock(0.6, D) - Fields.BombClock(0.3, D) < 0.3, "its clock runs slower as time slows");
+        Check(Fields.BombClock(10.5, D) < held && Fields.BombClock(11.5, D) < Fields.BombClock(10.5, D) && Fields.BombClock(12, D) == 0 && Fields.BombClock(13, D) == 0,
+              "it plays back to the start while time returns");
+        var t0 = Fields.At(tach, 0.02); var t1 = Fields.At(tach, 1); var t5 = Fields.At(tach, 5); var t9 = Fields.At(tach, 9.9);
+        var t11 = Fields.At(tach, 11); var t12 = Fields.At(tach, 12.1);
+        Check(t0.Freezing && t0.Flash > 2 && t0.SphereRadius < 50, "tachyon: catches craft at once, green flash, sphere starting");
+        Check(Near(t1.SphereRadius, 500, 1e-9) && Near(t9.SphereRadius, 500, 1e-9) && t9.Freezing && t9.Speed == 0, "tachyon: sphere holds at full size, time stopped");
+        Check(t5.Flash > 0.4 && Near(t5.Flash, t9.Flash, 1e-9) && Near(t5.Tau, held, 1e-9), "tachyon: the flash hangs, frozen, in the middle");
+        Check(!t11.Freezing && t11.Slowed && t11.Speed > 0 && t11.Speed < 1 && t11.SphereRadius < 500 && t11.Flash > t5.Flash, "tachyon: time returning, flash playing back (brighter), sphere shrinking");
+        Check(!t12.Slowed && t12.Speed == 1 && t12.Flash == 0 && t12.SphereRadius == 0, "tachyon: all back to normal after the speed-up");
         Check(!Fields.At(tach, Fields.End(tach) - 0.01).Over && Fields.At(tach, Fields.End(tach) + 0.01).Over, "tachyon: over after its end");
         Check(!Fields.At(tach, -1).Freezing && !Fields.At(tach, -1).Over, "nothing before the detonation");
     }

@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0
+
+Needs VFX Reconfigured 0.10.0 or newer (its shaders changed: rebuild it with Unity).
+
+- **Tachyon Bomb**:
+  - Time slows smoothly to a stop over about a second and speeds back up over two, instead of stopping and starting
+    at once.
+  - Everything on a caught craft slows and stops with it: sounds, engine plumes (stock particles and Waterfall),
+    landing gear and other animations, kerbals.
+  - Its part modules are switched off while time is stopped, so engines and converters use no fuel or power, and
+    weapons and guidance wait.
+  - BDArmory explosions inside the dome stop while time is stopped, damage included, and carry on afterwards. VFX
+    Reconfigured's explosion visuals slow and stop with the field.
+  - The bomb's own flash slows to a standstill in the middle, round its frozen pieces. Both play backwards as time
+    returns.
+  - The dome tints everything inside it green and has a crisp edge and a faint lattice, visible from inside (VFX
+    Reconfigured's new tint sphere).
+  - Freeze time can be set in the part's window, from 5 to 60 seconds.
+- **Gravity and Warp Bombs**: the inward-sweeping rings keep a steady width.
+- **Gauss Cannon and Turret**: the charge sound is loud from the first moment, rises in pitch more slowly and
+  steadily, and crackles all the way through.
+
 ## 0.3.0
 
 Needs VFX Reconfigured 0.9.0 or newer.

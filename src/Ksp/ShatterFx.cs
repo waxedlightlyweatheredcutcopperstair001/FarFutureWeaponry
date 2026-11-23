@@ -29,19 +29,18 @@ namespace FarFutureWeaponry
         readonly List<Mesh> meshes = new List<Mesh>();
         Vector3d anchor;                  // the model's position in the main body's frame
         readonly Quaternion rotation;
-        readonly float collapseAt;
         float halfHeight;
         bool reassembled, landed;
         Vector3 velocity;
-        float reassembledAt;
+        float reassembledAt, age;
 
         public bool Done { get; private set; }
 
-        public static ShatterFx Capture(Part part, float collapseAt)
+        public static ShatterFx Capture(Part part)
         {
             Transform model = part.partTransform != null ? part.partTransform.Find("model") : null;
             if (model == null) model = part.transform;
-            try { return new ShatterFx(model, collapseAt, (int)(part.flightID & 0x7fffffff)); }
+            try { return new ShatterFx(model, (int)(part.flightID & 0x7fffffff)); }
             catch (System.Exception e)
             {
                 Log.Warn("Couldn't copy the bomb's model for the shatter effect: " + e.Message);
@@ -49,9 +48,8 @@ namespace FarFutureWeaponry
             }
         }
 
-        ShatterFx(Transform model, float collapseAt, int seed)
+        ShatterFx(Transform model, int seed)
         {
-            this.collapseAt = collapseAt;
             rotation = model.rotation;
             anchor = Visuals.ToFrame(model.position);
 
@@ -192,22 +190,26 @@ namespace FarFutureWeaponry
         static Vector3 Random(System.Random rng) =>
             new Vector3((float)rng.NextDouble() * 2 - 1, (float)rng.NextDouble() * 2 - 1, (float)rng.NextDouble() * 2 - 1);
 
-        /// <summary>Per frame: t is seconds since the detonation.</summary>
-        public void Tick(float t, float dt)
+        /// <summary>
+        /// Per frame. spread: how far out the pieces are (0 together, 1 fully flung; the field's clock decides, so they
+        /// slow to a stop, hang, and fly back as time returns); together: they are back in one piece, for good.
+        /// </summary>
+        public void Tick(float spread, bool together, float dt)
         {
             if (Done || whole == null) { Done = true; return; }
+            float t = (age += dt);
             if (!reassembled)
             {
                 Vector3 at = Visuals.FromFrame(anchor);
                 pieces.transform.SetPositionAndRotation(at, rotation);
                 whole.transform.SetPositionAndRotation(at, rotation);
-                float s = (float)Shatter.Spread(t, collapseAt);
+                float s = spread;
                 foreach (Fragment f in fragments)
                 {
                     f.T.localPosition = f.Home + f.Fly * s;
                     f.T.localRotation = Quaternion.AngleAxis(f.SpinDegrees * s, f.SpinAxis);
                 }
-                if (Shatter.Reassembled(t, collapseAt))
+                if (together)
                 {
                     reassembled = true; reassembledAt = t;
                     pieces.SetActive(false);

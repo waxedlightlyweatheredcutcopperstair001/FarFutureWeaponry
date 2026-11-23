@@ -35,7 +35,10 @@ namespace FarFutureWeaponry.Core
         public double RingRadius, RingAmp;             // the ripple ring: radius (m), 0-1.2
         public double Flash, FlashRadius;              // a flash: power (1 bright, 3 blinding), radius (m)
         public double SphereRadius, SphereAlpha;       // a sphere (tachyon field; the gravity bomb's pulse): radius (m), opacity 0-1
-        public bool Pulling, Destroying, Freezing;     // physics running at this moment
+        public bool Pulling, Destroying, Freezing;     // physics running at this moment (Freezing: new craft are caught)
+        public double Speed;                           // tachyon field: how fast time runs inside (1 normal, 0 stopped)
+        public bool Slowed;                            // tachyon field: craft caught are still held (Speed < 1)
+        public double Tau;                             // tachyon field: the bomb's own clock (its flash and pieces): forward, held, back
         public bool Over;                              // nothing left to draw or do
     }
 
@@ -53,11 +56,45 @@ namespace FarFutureWeaponry.Core
 
         /// <summary>When everything about the field is over (s after detonation).</summary>
         public static double End(FieldSpec s) =>
-            s.Duration + (s.Kind == FieldKind.Gravity ? PulseTime + 0.2 : FlashTail) + (s.Kind == FieldKind.Tachyon ? 0.5 : 0);   // (the tachyon flash comes as the sphere closes)
+            s.Kind == FieldKind.Tachyon ? s.Duration + SpeedUp + 0.2 :
+            s.Duration + (s.Kind == FieldKind.Gravity ? PulseTime + 0.2 : FlashTail);
+
+        // ---- The tachyon field's time ----
+        // Time inside slows to a stop over SlowDown seconds, holds, and comes back over SpeedUp seconds after the field's
+        // duration (both smooth). The bomb's own clock runs at that speed, so its flash and pieces slow to a standstill,
+        // hang there, and play back to the start as time returns.
+        public const double SlowDown = 1.2, SpeedUp = 2.0;
+
+        /// <summary>How fast time runs inside the field at t (1 normal, 0 stopped).</summary>
+        public static double TimeSpeed(double t, double duration)
+        {
+            if (t <= 0) return 1;
+            if (t < SlowDown) return 1 - Smooth(0, SlowDown, t);
+            if (t < duration) return 0;
+            return Smooth(duration, duration + SpeedUp, t);
+        }
+
+        // Time elapsed inside over the first u seconds of the slow-down (the integral of the speed).
+        static double Inside(double u)
+        {
+            if (u <= 0) return 0;
+            if (u >= SlowDown) return SlowDown / 2;
+            double x = u / SlowDown;
+            return u - SlowDown * (x * x * x - x * x * x * x / 2);
+        }
+
+        /// <summary>The bomb's own clock: runs forward as time slows, holds, then plays back to 0 while time returns.</summary>
+        public static double BombClock(double t, double duration)
+        {
+            if (t <= 0) return 0;
+            if (t < duration) return Inside(t);
+            if (t < duration + SpeedUp) return Inside(SlowDown * (1 - (t - duration) / SpeedUp));
+            return 0;
+        }   // (the tachyon flash comes as the sphere closes)
 
         public static FieldLook At(FieldSpec s, double t)
         {
-            var l = new FieldLook();
+            var l = new FieldLook { Speed = 1 };
             double D = Math.Max(0.1, s.Duration), R = s.Radius;
             if (t < 0) return l;
             if (t > End(s)) { l.Over = true; return l; }
@@ -101,15 +138,22 @@ namespace FarFutureWeaponry.Core
                 }
                 case FieldKind.Tachyon:
                 {
-                    // A green flash, a sphere that swells to the full radius in half a second, holds, and falls back in on
-                    // itself over the last 0.6 s.
-                    double grow = Smooth(0, 0.5, t), shrink = t >= D ? Smooth(D, D + FlashTail, t) : 0;
-                    l.SphereRadius = R * grow * (1 - shrink);
-                    l.SphereAlpha = (0.55 + 0.45 * Math.Exp(-t / 0.3)) * (1 - shrink);
-                    double closed = t - D - FlashTail;
-                    l.Flash = 2.5 * Math.Exp(-t / 0.2) + (closed >= 0 ? 1.2 * Math.Exp(-closed / 0.12) : 0);
-                    l.FlashRadius = 0.3 * R;
+                    // A green flash that slows to a standstill as time does and hangs in the middle, round the bomb's
+                    // frozen pieces; a sphere that swells to the full radius in half a second and holds. At the end both
+                    // play backwards while time returns, and the sphere shrinks away.
+                    double end = D + SpeedUp;
+                    l.Speed = TimeSpeed(t, D);
+                    l.Slowed = t < end;
                     l.Freezing = on;
+                    l.Tau = BombClock(t, D);
+                    double shrink = t >= D ? Smooth(D, end, t) : 0;
+                    l.SphereRadius = R * Smooth(0, 0.5, t) * (1 - shrink);
+                    l.SphereAlpha = (0.55 + 0.45 * Math.Exp(-t / 0.3)) * (1 - shrink);
+                    if (t < end)
+                    {
+                        l.Flash = 2.2 * Math.Exp(-l.Tau / 0.45) * Smooth(0, 0.03, l.Tau + (t < D ? 0.03 : 0));
+                        l.FlashRadius = 0.25 * R * (0.3 + 0.7 * Math.Min(1, l.Tau / 0.25));
+                    }
                     break;
                 }
             }
