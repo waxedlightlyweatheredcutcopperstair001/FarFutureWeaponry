@@ -147,8 +147,34 @@ static class Program
         Check(cap.Count == 10 && cap.Points[0].X == 40, "point cap keeps the newest");
     }
 
+    static double Rms(float[] s, int from, int to)
+    {
+        double sum = 0;
+        for (int i = from; i < to; i++) sum += s[i] * s[i];
+        return Math.Sqrt(sum / Math.Max(1, to - from));
+    }
+
+    static void ChargeSoundTests()
+    {
+        float[] s = ChargeSound.Generate(44100, 2f, 7);
+        Check(s.Length == 88200, "sound lasts exactly the charge time (" + s.Length + ")");
+        bool inRange = true;
+        foreach (float v in s) if (v < -1 || v > 1 || float.IsNaN(v)) inRange = false;
+        Check(inRange, "samples within [-1, 1]");
+        Check(Math.Abs(s[0]) < 1e-3 && Math.Abs(s[s.Length - 1]) < 1e-3, "starts and ends silent (no clicks)");
+        double early = Rms(s, 4410, 22050), late = Rms(s, 66150, 85000);
+        Check(late > early * 1.5, $"builds up towards the shot (rms {early:0.000} -> {late:0.000})");
+        Check(Rms(s, 22050, 66150) > 0.05, "audible through the middle of the charge");
+        float[] again = ChargeSound.Generate(44100, 2f, 7), other = ChargeSound.Generate(44100, 2f, 8);
+        bool same = true, differs = false;
+        for (int i = 0; i < s.Length; i++) { if (s[i] != again[i]) same = false; if (s[i] != other[i]) differs = true; }
+        Check(same && differs, "same seed same sound; another seed different crackles");
+        Check(ChargeSound.Generate(44100, 0, 1).Length == 2205, "zero length gets a 50 ms minimum");
+    }
+
     static int Main()
     {
+        ChargeSoundTests();
         AntimatterTests();
         ContainmentTests();
         CurveTests();

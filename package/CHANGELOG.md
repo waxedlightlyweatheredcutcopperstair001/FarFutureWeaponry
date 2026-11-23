@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Gauss Cannon and Turret: the blue beam now starts at the muzzle. Before, it started tens of metres out, where the
+  slug was by the first frame.
+- Gauss Cannon and Turret: a new charge-up sound lasts the whole 2 s charge: a rising whine, a hum and crackles that
+  build up to the shot. The old clip was only half a second long.
+
 ## 0.1.0
 
 First version: the five simplest weapons, on placeholder models.

@@ -91,6 +91,13 @@ namespace FarFutureWeaponry
                         t = NewTrail(d);
                         t.Bullet = b;
                         byBullet[b] = t;
+                        // A fast slug is already tens of metres out by the first frame we see it: start the beam at
+                        // the muzzle it came from.
+                        if (Bda.BulletMuzzle(b, c.transform.position, alive, out Vector3 muzzle))
+                        {
+                            Vector3d m = Visuals.ToFrame(muzzle);
+                            t.Points.Add(m.x, m.y, m.z, now);
+                        }
                     }
                     t.LastAlive = alive;
                     t.SeenFrame = frame;

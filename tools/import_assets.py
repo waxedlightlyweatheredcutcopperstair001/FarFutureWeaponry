@@ -11,7 +11,7 @@ borrowed (edit MANIFEST); the results are committed so the package builds anywhe
 Usage: python3 -I tools/import_assets.py [--inputs "<folder holding BDArmory-1.13.1, BDArmory-Extended-1.5.3 and
        North_Kerbin_Dynamic_Renewed-0.1.1>"]   (default: ../../BDArmory Lite, next to this repository's parent)
 """
-import argparse, shutil, sys
+import argparse, shutil, sys, wave
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -52,7 +52,6 @@ MANIFEST = [
     ('BDAX', 'Parts/FixedGuns/Railgun/smoke.png', 'Parts/GaussCannon/smoke.png', None),
     ('BDAX', 'Parts/FixedGuns/Railgun/spark.png', 'Parts/GaussCannon/spark.png', None),
     ('BDAX', 'Parts/FixedGuns/Railgun/bullet.png', 'Parts/GaussCannon/bullet.png', None),
-    ('BDAX', 'Parts/FixedGuns/Railgun/railcharge.ogg', 'Parts/GaussCannon/charge.ogg', None),
     ('BDAX', 'Parts/FixedGuns/Railgun/railfire.ogg', 'Parts/GaussCannon/fire.ogg', None),
     # Gauss turret: NKDR's prototype railgun turret.
     ('NKDR', 'parts/Railgun/model.mu', 'Parts/GaussTurret/model.mu', None),
@@ -112,7 +111,12 @@ def main():
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(data)
         print(f'{s}/{src} -> assets/{dst}{" (tinted " + colour + ")" if colour else ""}', flush=True)
-    print(f'Imported {len(MANIFEST)} files.')
+    # A silent clip for BDArmory's chargeSoundPath on weapons whose charge sound the plugin makes (ModuleFFWChargeSparks):
+    # BDArmory plays its clip once, and an empty path logs an error.
+    with wave.open(str(ASSETS / 'Sounds' / 'silence.wav'), 'wb') as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(44100)
+        w.writeframes(b'\x00\x00' * 2205)
+    print(f'Imported {len(MANIFEST)} files; wrote Sounds/silence.wav.')
 
 
 if __name__ == '__main__':

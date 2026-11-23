@@ -26,11 +26,12 @@ namespace FarFutureWeaponry
         // Bullets: BDArmory.Bullets.PooledBulletManager.Instance.activeBullets (HashSet<PooledBullet>).
         static FieldInfo bulletManagerInstance, activeBulletsField;
         static FieldInfo bulletInfoField, bulletTimeAlive;    // PooledBullet.bullet (BulletInfo), .timeAlive
+        static FieldInfo bulletSourceWeapon, bulletVelocity;  // PooledBullet.sourceWeapon (Part), .currentVelocity
         static PropertyInfo bulletInfoName;                   // BulletInfo.name
 
         // Weapons: BDArmory.Weapons.ModuleWeapon.isCharging (private bool), .ChargeTime.
         public static Type ModuleWeaponType { get; private set; }
-        static FieldInfo weaponIsCharging, weaponChargeTime, weaponAmmoName, weaponAmmoPerShot;
+        static FieldInfo weaponIsCharging, weaponChargeTime, weaponAmmoName, weaponAmmoPerShot, weaponFireTransforms;
 
         static readonly HashSet<string> warned = new HashSet<string>();
 
@@ -62,6 +63,8 @@ namespace FarFutureWeaponry
             activeBulletsField = manager?.GetField("activeBullets", Any);
             bulletInfoField = bullet?.GetField("bullet", Any);
             bulletTimeAlive = bullet?.GetField("timeAlive", Any);
+            bulletSourceWeapon = bullet?.GetField("sourceWeapon", Any);
+            bulletVelocity = bullet?.GetField("currentVelocity", Any);
             bulletInfoName = bda.GetType("BDArmory.Bullets.BulletInfo")?.GetProperty("name", Any);
 
             ModuleWeaponType = bda.GetType("BDArmory.Weapons.ModuleWeapon");
@@ -69,6 +72,7 @@ namespace FarFutureWeaponry
             weaponChargeTime = ModuleWeaponType?.GetField("ChargeTime", Any);
             weaponAmmoName = ModuleWeaponType?.GetField("ammoName", Any);
             weaponAmmoPerShot = ModuleWeaponType?.GetField("requestResourceAmount", Any);
+            weaponFireTransforms = ModuleWeaponType?.GetField("fireTransforms", Any);
 
             Log.Info($"BDArmory {bda.GetName().Version} found ({(Lite ? "BDArmory Lite" : "BDArmory")}). " +
                      $"Explosions: {Ok(ExplosionsReadable)}, bullets: {Ok(BulletsReadable)}, weapon charge: {Ok(weaponIsCharging != null && weaponChargeTime != null)}, " +
@@ -144,6 +148,39 @@ namespace FarFutureWeaponry
             name = bulletInfoName.GetValue(info, null) as string;
             timeAlive = (float)bulletTimeAlive.GetValue(pooledBullet);
             return name != null;
+        }
+
+        /// <summary>
+        /// Where a bullet left its gun: the source weapon's fire transform nearest the bullet (several barrels), or, if
+        /// that can't be read, the bullet's position wound back along its velocity by its flight time.
+        /// </summary>
+        public static bool BulletMuzzle(object pooledBullet, Vector3 bulletPos, float timeAlive, out Vector3 muzzle)
+        {
+            muzzle = default;
+            if (pooledBullet == null) return false;
+            var part = bulletSourceWeapon?.GetValue(pooledBullet) as Part;
+            if (part != null && weaponFireTransforms != null)
+            {
+                for (int i = 0; i < part.Modules.Count; i++)
+                {
+                    if (!ModuleWeaponType.IsInstanceOfType(part.Modules[i])) continue;
+                    if (!(weaponFireTransforms.GetValue(part.Modules[i]) is Transform[] tfs)) continue;
+                    float best = float.MaxValue;
+                    foreach (Transform tf in tfs)
+                    {
+                        if (tf == null) continue;
+                        float d = (tf.position - bulletPos).sqrMagnitude;
+                        if (d < best) { best = d; muzzle = tf.position; }
+                    }
+                    if (best < float.MaxValue) return true;
+                }
+            }
+            if (bulletVelocity != null && timeAlive > 0)
+            {
+                muzzle = bulletPos - (Vector3)bulletVelocity.GetValue(pooledBullet) * timeAlive;
+                return true;
+            }
+            return false;
         }
 
         // ---- Weapons ----

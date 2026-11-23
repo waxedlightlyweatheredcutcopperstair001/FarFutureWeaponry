@@ -5,7 +5,9 @@ namespace FarFutureWeaponry
 {
     /// <summary>
     /// Electric sparks crackling along a barrel while its BDArmory weapon charges (ChargeTime), building up to the
-    /// shot, with a flickering light. Reads the weapon's charging state; adds nothing to the weapon itself.
+    /// shot, with a flickering light and a charge-up sound made in code that lasts the whole charge (BDArmory plays
+    /// its charge clip once, so a short clip goes quiet partway through; give the weapon a silent chargeSoundPath).
+    /// Reads the weapon's charging state; adds nothing to the weapon itself.
     /// </summary>
     public class ModuleFFWChargeSparks : PartModule
     {
@@ -19,6 +21,9 @@ namespace FarFutureWeaponry
         [KSPField] public float sparkSize = 0.04f;
         [KSPField] public float lightRange = 8;
         [KSPField] public float lightIntensity = 2.5f;
+        [KSPField] public bool chargeSound = true;
+        [KSPField] public float soundVolume = 0.8f;
+        [KSPField] public float soundRange = 600;      // m the sound carries
 
         PartModule weapon;
         ParticleSystem sparks;
@@ -26,6 +31,8 @@ namespace FarFutureWeaponry
         Material mat;
         bool wasCharging;
         float chargeStart, chargeTime;
+        AudioSource audio;
+        AudioClip clip;
 
         public override void OnStart(StartState state)
         {
@@ -84,6 +91,34 @@ namespace FarFutureWeaponry
             glow.range = lightRange;
             glow.intensity = 0;
             glow.shadows = LightShadows.None;
+
+            if (chargeSound)
+            {
+                audio = gameObject.AddComponent<AudioSource>();
+                audio.playOnAwake = false;
+                audio.loop = false;
+                audio.spatialBlend = 1;
+                audio.dopplerLevel = 0;
+                audio.rolloffMode = AudioRolloffMode.Logarithmic;
+                audio.minDistance = 5;
+                audio.maxDistance = soundRange;
+            }
+        }
+
+        void PlayCharge(float seconds)
+        {
+            if (audio == null || seconds <= 0) return;
+            if (clip == null || Mathf.Abs(clip.length - seconds) > 0.01f)
+            {
+                if (clip != null) Destroy(clip);
+                const int rate = 44100;
+                float[] data = ChargeSound.Generate(rate, seconds, part.flightID != 0 ? (int)part.flightID : 1);
+                clip = AudioClip.Create("FFW charge", data.Length, 1, rate, false);
+                clip.SetData(data, 0);
+            }
+            audio.clip = clip;
+            audio.volume = soundVolume * GameSettings.SHIP_VOLUME;
+            audio.Play();
         }
 
         void Update()
@@ -94,7 +129,10 @@ namespace FarFutureWeaponry
             {
                 chargeStart = Time.time;
                 chargeTime = Bda.ChargeTime(weapon);
+                PlayCharge(chargeTime);
             }
+            if (!charging && wasCharging && audio != null && audio.isPlaying && Time.time - chargeStart < chargeTime - 0.05f)
+                audio.Stop();   // charge cut short (weapon disabled, out of power)
             wasCharging = charging;
             float level = charging ? FxCurves.ChargeSparks(Time.time - chargeStart, chargeTime) : 0;
             var emission = sparks.emission;
@@ -105,6 +143,7 @@ namespace FarFutureWeaponry
         void OnDestroy()
         {
             if (mat != null) Destroy(mat);
+            if (clip != null) Destroy(clip);
         }
     }
 }
