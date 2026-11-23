@@ -24,6 +24,7 @@ Shader "FarFutureWeaponry/CloakOverlay"
             #pragma fragment frag
             #pragma target 3.0
             #include "UnityCG.cginc"
+            #include "Noise.cginc"
             float4 _Color, _Wave, _CloakState;
             struct v2f { float4 pos:SV_POSITION; float3 w:TEXCOORD0; float3 n:TEXCOORD1; };
             v2f vert(float4 vertex:POSITION, float3 normal:NORMAL)
@@ -36,8 +37,8 @@ Shader "FarFutureWeaponry/CloakOverlay"
             }
             float4 frag(v2f i):SV_Target
             {
-                float3 v=normalize(_WorldSpaceCameraPos-i.w);
-                float rim=1-abs(dot(normalize(i.n),v));
+                float3 v=FfwNormalize(_WorldSpaceCameraPos-i.w,float3(0,1,0));
+                float rim=1-abs(dot(FfwNormalize(i.n,v),v));
                 float band=0;
                 if(_Wave.w>=0)
                 {
@@ -47,7 +48,7 @@ Shader "FarFutureWeaponry/CloakOverlay"
                     if(_CloakState.z<-0.5&&x<-1.5) discard;   // already uncloaked
                 }
                 float k=(pow(rim,4)*_CloakState.y+band*0.6)*_CloakState.x;
-                return float4(_Color.rgb*k,0);
+                return float4(max(_Color.rgb*k,0),0);
             }
             ENDCG
         }

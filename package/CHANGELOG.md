@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.3
+
+- **Cloaking Device**, force field, rust, Kraken wave and holograms: the overlay shaders could produce invalid pixel
+  values (NaN) on meshes without proper normals. With HDR post-processing (TUFX bloom, auto-exposure, anti-aliasing)
+  one such pixel darkened, blew out or smeared the whole screen. The shaders now guard against it, and overlays skip
+  meshes that have no normals. **Needs the rebuilt shader bundle.**
+- Cloaking Device: a "Cloak outline" switch in its part window. Off, the parts still vanish as the ripple passes but
+  no outline is drawn.
+
 ## 0.10.2
 
 - **Cloaking Device**:

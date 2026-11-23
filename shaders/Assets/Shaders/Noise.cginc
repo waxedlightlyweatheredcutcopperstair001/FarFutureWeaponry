@@ -22,4 +22,11 @@ float FfwFbm(float3 p)
     for(int k=0;k<4;k++) { s+=a*FfwNoise(p); p=p*2.03+17.1; a*=0.5; }
     return s/0.9375;
 }
+// Normalize without NaN: a zero-length vector (a mesh with no normals, no light set) gives the fallback instead. One
+// NaN pixel in KSP's HDR image is spread over the whole screen by post-processing (TUFX bloom, auto-exposure).
+float3 FfwNormalize(float3 v, float3 fallback)
+{
+    float l=dot(v,v);
+    return l>1e-12 ? v*rsqrt(l) : fallback;
+}
 #endif

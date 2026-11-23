@@ -21,6 +21,10 @@ namespace FarFutureWeaponry
          UI_Toggle(disabledText = "Off", enabledText = "On", scene = UI_Scene.Flight)]
         public bool cloakOn = false;
 
+        [KSPField(isPersistant = true, guiActive = true, guiActiveEditor = true, guiName = "Cloak outline"),
+         UI_Toggle(disabledText = "Off", enabledText = "On")]
+        public bool outline = true;     // the faint outline and ripple (off: the parts simply vanish)
+
         [KSPField] public float ecPerSecond = 10;
         [KSPField] public float rippleSeconds = 0.8f;
         [KSPField] public string color = "120, 180, 255, 255";
@@ -100,7 +104,7 @@ namespace FarFutureWeaponry
             else if (rippling) HideOutside(c, wave);
             else Show();
             if (Time.time >= nextRescan) nextRescan = Time.time + 0.5f;
-            if (!overlay) { ClearOverlays(); return; }
+            if (!overlay || !outline) { ClearOverlays(); return; }
             if (builtFor != vessel.parts.Count) { ClearOverlays(); BuildOverlays(); }
             float sweep = rippling ? (active ? 1 : -1) : 0;
             foreach (PartOverlay o in overlays)

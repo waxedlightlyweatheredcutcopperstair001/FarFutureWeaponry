@@ -48,10 +48,10 @@ Shader "FarFutureWeaponry/RustOverlay"
                 float tone=FfwFbm(i.p*2.7+5.3);
                 float3 albedo=lerp(float3(0.22,0.1,0.04),float3(0.6,0.3,0.1),tone);
                 albedo*=lerp(0.65,1.0,smoothstep(0.3,0.6,fine));   // pitting
-                float3 n=normalize(i.n);
-                float ndl=saturate(dot(n,normalize(_WorldSpaceLightPos0.xyz)));
+                float3 n=FfwNormalize(i.n,float3(0,1,0));
+                float ndl=saturate(dot(n,FfwNormalize(_WorldSpaceLightPos0.xyz,float3(0,1,0))));
                 float3 lit=albedo*(ShadeSH9(float4(n,1))+_LightColor0.rgb*ndl);
-                return float4(lit,m);
+                return float4(saturate(lit),saturate(m));
             }
             ENDCG
         }

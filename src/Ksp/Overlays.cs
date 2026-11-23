@@ -64,6 +64,7 @@ namespace FarFutureWeaponry
                 var src = mf != null ? mf.GetComponent<MeshRenderer>() : null;
                 if (src == null || mf.sharedMesh == null || mf.name.StartsWith("FFW ")) continue;   // (not other overlays)
                 if (!IsHull(src)) continue;                                                        // (not plumes and effects)
+                if (!mf.sharedMesh.HasVertexAttribute(UnityEngine.Rendering.VertexAttribute.Normal)) continue;   // (no normals: nothing to outline)
                 var go = new GameObject(name);
                 go.layer = mf.gameObject.layer;
                 go.transform.SetParent(mf.transform, false);

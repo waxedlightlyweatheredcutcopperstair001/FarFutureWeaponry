@@ -70,12 +70,12 @@ Shader "FarFutureWeaponry/Hologram"
             }
             float4 frag(v2f i):SV_Target
             {
-                float3 n=normalize(i.n);
-                float3 v=normalize(_WorldSpaceCameraPos-i.w);
+                float3 n=FfwNormalize(i.n,float3(0,1,0));
+                float3 v=FfwNormalize(_WorldSpaceCameraPos-i.w,float3(0,1,0));
                 float rim=1-abs(dot(n,v));
                 // The craft's own colour, lit softly (so its shape reads), then pulled a little towards the tint.
                 float3 albedo=tex2D(_MainTex,i.uv).rgb*_BaseColor.rgb;
-                float3 light=0.45+0.55*saturate(dot(n,normalize(_WorldSpaceLightPos0.xyz)))*_LightColor0.rgb;
+                float3 light=0.45+0.55*saturate(dot(n,FfwNormalize(_WorldSpaceLightPos0.xyz,float3(0,1,0))))*_LightColor0.rgb;
                 float3 c=albedo*light;
                 float lum=dot(c,float3(0.3,0.59,0.11));
                 c=lerp(c,lum*_Color.rgb*1.3+_Color.rgb*0.08,0.3);
@@ -83,7 +83,7 @@ Shader "FarFutureWeaponry/Hologram"
                 float flicker=0.9+0.1*sin(_Time.y*37+_HoloState.y)*sin(_Time.y*13);
                 c=c*scan+_Color.rgb*pow(rim,3)*0.6;
                 float a=saturate(_Opacity+0.3*pow(rim,3))*flicker*_HoloState.x;
-                return float4(c,a);
+                return float4(saturate(c),saturate(a));
             }
             ENDCG
         }

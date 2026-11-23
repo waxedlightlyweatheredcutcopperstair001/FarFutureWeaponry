@@ -39,8 +39,8 @@ Shader "FarFutureWeaponry/ContourWave"
                 float w=max(_WaveShape.x,1e-3);
                 float band=exp(-(x*x)/(w*w));
                 float trail=x<0?0.3*exp(x/max(_WaveShape.y,1e-3)):0;
-                float3 v=normalize(_WorldSpaceCameraPos-i.w);
-                float rim=1-abs(dot(normalize(i.n),v));
+                float3 v=FfwNormalize(_WorldSpaceCameraPos-i.w,float3(0,1,0));
+                float rim=1-abs(dot(FfwNormalize(i.n,v),v));
                 float crawl=lerp(1,0.55+0.9*FfwNoise(i.w*1.7+_Time.y*float3(0,2.5,0)),saturate(_WaveShape.w));
                 float k=(band*1.6+trail)*(0.5+0.8*rim*rim)*crawl*_WaveShape.z;
                 return float4(max(_Color.rgb*k,0),0);

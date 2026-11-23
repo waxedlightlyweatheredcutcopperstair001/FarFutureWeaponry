@@ -45,8 +45,8 @@ Shader "FarFutureWeaponry/ShieldOverlay"
             }
             float4 frag(v2f i):SV_Target
             {
-                float3 v=normalize(_WorldSpaceCameraPos-i.w);
-                float rim=1-abs(dot(normalize(i.n),v));
+                float3 v=FfwNormalize(_WorldSpaceCameraPos-i.w,float3(0,1,0));
+                float rim=1-abs(dot(FfwNormalize(i.n,v),v));
                 float shimmer=0.7+0.6*FfwNoise(i.w*0.9+_ShieldState.y*float3(0.3,0.8,0.2));
                 float k=(0.08+0.9*rim*rim*rim)*shimmer*_ShieldState.x;
                 if(_Wave.w>=0)
