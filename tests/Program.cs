@@ -203,7 +203,18 @@ static class Program
         var g1 = Fields.At(grav, 0.5); var g2 = Fields.At(grav, 2.5); var g3 = Fields.At(grav, 3.05);
         Check(g1.Pulling && g2.Pulling && !g3.Pulling, "gravity: pulls for 3 s");
         Check(g1.LensRadius > g2.LensRadius && g2.LensStrength > g1.LensStrength && g1.LensRadius <= 300, "gravity: the bubble shrinks and strengthens");
-        Check(g3.Flash > 2 && g3.LensStrength == 0 && g1.Flash == 0, "gravity: the white flash comes at the collapse");
+        Check(g3.Flash > 1.5 && g3.LensStrength == 0 && g1.Flash == 0, "gravity: the white flash comes at the collapse");
+        Check(g2.LensStrength <= Fields.GravityLens + 1e-9 && g1.CoreShare < 0.02, "gravity: toned-down lens, only a speck of a core");
+        var g4 = Fields.At(grav, 3.3); var g5 = Fields.At(grav, 3.8);
+        Check(g4.RingRadius < g5.RingRadius && g4.RingAmp > g5.RingAmp && g5.SphereRadius > g4.SphereRadius && g4.SphereAlpha > g5.SphereAlpha && g5.SphereRadius > 0,
+              "gravity: the closing pulse spreads out and fades");
+        Check(Fields.At(grav, Fields.End(grav) + 0.01).Over && !Fields.At(grav, 3 + Fields.PulseTime).Over, "gravity: over once the pulse has spread");
+        // Air drawn in: rings sweep inward while pulling.
+        var a1 = Fields.At(grav, 1.0); var a2 = Fields.At(grav, 1.3);
+        Check(a1.InRingAmp > 0 && a2.InRingRadius < a1.InRingRadius && a1.InRingRadius <= 300, "gravity: rings of air sweep inward");
+        Check(Fields.At(grav, 3.2).InRingAmp == 0, "gravity: no inflow after the collapse");
+        var w3 = Fields.At(warp, 3); var w33 = Fields.At(warp, 3.2);
+        Check(w3.InRingAmp > 0 && w33.InRingRadius < w3.InRingRadius && w3.CoreShare > 0.1, "warp: air sweeps inward round a real black hole");
 
         // Tachyon: sphere grows in half a second, holds at 500 m, closes; freezing only during the 10 s.
         var tach = new FieldSpec { Kind = FieldKind.Tachyon, Radius = 500, Duration = 10 };

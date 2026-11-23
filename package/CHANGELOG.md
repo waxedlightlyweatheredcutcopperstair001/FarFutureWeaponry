@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.3.0
+
+Needs VFX Reconfigured 0.9.0 or newer.
+
+- **Tachyon Bomb**:
+  - Goes off when it hits the ground, even dropped from a craft on the ground. It arms after 0.2 s instead of 1 s
+    and 10 m. Before, it broke unarmed with no effect.
+  - Does no damage: no stock explosion, and next to no charge.
+  - Frozen craft and debris really stay still. They're held in place instead of having their speed reset each step,
+    which let them drift down.
+  - Kerbals on EVA can't move while frozen, and every kerbal's animations stop (EVA and in cockpits).
+  - Green glints shimmer all through the dome, and more finely round the camera when it's inside.
+- **Gravity Bomb**: no black hole, only a speck of a core, and gentler lensing. The closing blast is now a pulse: a
+  ring of bent air and a pale shell racing outward, with a white flash, instead of a fireball.
+- **Gravity and Warp Bombs**: air rushes in towards the centre, as wisps and rings of bent air sweeping inward (a
+  shockwave played backwards).
+- **Antimatter Bomb**: a pink flash and a much thinner cloud (VFX Reconfigured 0.9.0).
+- **Smoother detonations**:
+  - Field sounds are made when a bomb loads, not as it goes off.
+  - The big flash lights are gone when VFX Reconfigured draws the flashes. A light hundreds of metres wide made
+    everything around it draw again, which caused a hitch of up to a second as the bombs went off.
+
 ## 0.2.0
 
 Five bombs and a countermeasure, on placeholder models. Needs VFX Reconfigured 0.8.0 or newer (its effects API draws

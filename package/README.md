@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.2.0
+# Far Future Weaponry 0.3.0
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -8,7 +8,7 @@ Extended and North Kerbin Dynamics parts.
 ## Requirements
 
 - BDArmory Lite, or BDArmory (Continued)
-- VFX Reconfigured 0.8.0 or newer
+- VFX Reconfigured 0.9.0 or newer
 - Physics Range Extender
 - ModuleManager
 
@@ -33,9 +33,9 @@ Drop them like any BDArmory bomb.
 
 | Bomb | What it does |
 |---|---|
-| **Gravity Bomb** | A collapsing bubble of bent space pulls everything within 300 m towards it at 6 g for 3 s. Then a white flash and a 250 kg TNT blast hit whatever it gathered. |
-| **Warp Bomb** | A black hole for 10 s. Everything within 1 km is pulled in at 20 g, and anything that gets within 250 m is destroyed. |
-| **Tachyon Bomb** | A green sphere freezes every craft within 500 m, yours included, for 10 s. Then each one gets its speed back. No damage. The bomb shatters, its pieces hang in the field, then they fly back together and the bomb drops as a harmless dud (a prop that disappears after two minutes). |
+| **Gravity Bomb** | A collapsing bubble of bent space pulls everything within 300 m towards it at 6 g for 3 s, with air rushing in. Then a white flash and a pulse (a 250 kg TNT blast) hit whatever it gathered. |
+| **Warp Bomb** | A black hole for 10 s, with air rushing in. Everything within 1 km is pulled in at 20 g, and anything that gets within 250 m is destroyed. |
+| **Tachyon Bomb** | A shimmering green sphere freezes every craft within 500 m, yours included, for 10 s: kerbals can't move and stop still. Then each craft gets its speed back. No damage. The bomb shatters, its pieces hang in the field, then they fly back together and the bomb drops as a harmless dud (a prop that disappears after two minutes). |
 | **Antimatter Bomb** | About 500 megatons, drawn as an antimatter blast. Anything loaded within about 40 km is destroyed. |
 | **Mushroom Bomb** | About 2 megatons, with a green flash, green flames and a dark green cloud. Danger radius about 9 km. |
 

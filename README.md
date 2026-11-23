@@ -1,7 +1,7 @@
 # Far Future Weaponry
 
 Experimental weapons and armour for KSP 1.12.5, built on BDArmory. One package works with **BDArmory Lite** and full
-**BDArmory**. Requires VFX Reconfigured 0.8.0+, Physics Range Extender and ModuleManager. The player README and changelog are
+**BDArmory**. Requires VFX Reconfigured 0.9.0+, Physics Range Extender and ModuleManager. The player README and changelog are
 in `package/`.
 
 ## Layout
@@ -51,9 +51,11 @@ Windows: `py tools\make.py --deploy`. Single steps: `python3 tools/build.py`;
   trigger; "antimatter"; "mushroom"). It fires its field only if the warhead's `hasDetonated` is set when the part dies
   (not when an unarmed bomb is shot apart, nor on scene changes).
 - **Fields** (`FieldManager`): the pull is a constant acceleration on every loaded part inside the radius. The black
-  hole `explode()`s parts and demolishes buildings inside its event horizon. The tachyon freeze holds every part's
-  rigidbody at rest over the surface (Krakensbane and planet rotation accounted for), then gives back the velocity it
-  had relative to the surface. Lenses and flashes go through `EffectsApi.Lens`/`Glow` each frame.
+  hole `explode()`s parts and demolishes buildings inside its event horizon. The tachyon freeze makes every part's
+  rigidbody kinematic and stops kerbals' EVA control and animations. It then gives back the velocity each part had
+  relative to the surface (Krakensbane and planet rotation accounted for). Lenses and flashes go through
+  `EffectsApi.LensCore`/`Glow` each frame. Sounds are made when a bomb loads (`FieldManager.Prepare`), and lights are
+  only used without VFX Reconfigured: wide lights caused hitches at detonation.
 - **Antimatter** uses Far Future Technologies' units (36 GJ/unit) and the same containment model (a flat EC/s cost;
   without it, annihilation heats the part). `Resources.cfg` defines Antimatter only when the Community Resource Pack
   doesn't.

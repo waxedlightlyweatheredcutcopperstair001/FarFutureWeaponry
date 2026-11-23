@@ -39,6 +39,7 @@ namespace FarFutureWeaponry
             Bda.Init();
             Vfxr.Init();
             if (!string.IsNullOrEmpty(look)) Vfxr.SetPartLook(part, look);
+            FieldManager.Prepare(Spec());   // (sounds made now, not as it goes off)
             GameEvents.onPartDie.Add(OnPartDie);
             subscribed = true;
         }

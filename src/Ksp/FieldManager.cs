@@ -6,9 +6,13 @@ namespace FarFutureWeaponry
 {
     /// <summary>
     /// Runs the bombs' fields after they go off (ModuleFFWBomb): the pull, the black hole's destruction, the tachyon
-    /// freeze, the blast at the end of a gravity well, and how they look and sound (timelines in Core/Fields). Lenses and
-    /// flashes are drawn by VFX Reconfigured's EffectsApi; the tachyon sphere, lights and sounds by the plugin.
+    /// freeze, the pulse at the end of a gravity well, and how they look and sound (timelines in Core/Fields).
+    /// Lenses and flashes are drawn by VFX Reconfigured's EffectsApi; spheres, particles and sounds by the plugin.
     /// Positions are kept in the main body's frame (floating origin).
+    ///
+    /// Nothing heavy happens at the moment of detonation: sounds are made when the bomb loads (Prepare), and lights are
+    /// only used when VFX Reconfigured can't draw the flashes (a light with a range of hundreds of metres makes every
+    /// forward-rendered object in reach draw again: a visible hitch).
     /// </summary>
     [KSPAddon(KSPAddon.Startup.Flight, false)]
     public class FieldManager : MonoBehaviour
@@ -16,9 +20,48 @@ namespace FarFutureWeaponry
         public static FieldManager Instance { get; private set; }
         public static bool SceneChanging { get; private set; }
 
+        const int Rate = 44100;
+        const float FallbackLightRange = 250;
+
+        // ---- Sounds, made once per bomb type when it loads ----
+
+        static readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
+
+        static string Key(string what, double seconds) => what + ":" + seconds.ToString("0.00");
+
+        static AudioClip Clip(string key, System.Func<float[]> make)
+        {
+            if (clips.TryGetValue(key, out AudioClip c) && c != null) return c;
+            float[] samples = make();
+            c = AudioClip.Create("FFW " + key, samples.Length, 1, Rate, false);
+            c.SetData(samples, 0);
+            c.hideFlags = HideFlags.DontUnloadUnusedAsset;
+            clips[key] = c;
+            return c;
+        }
+
+        static AudioClip StartSound(FieldSpec s) => s.Kind == FieldKind.Tachyon
+            ? Clip("tachyon-start", () => FieldSound.Sweep(Rate, 0.9f, 1400, 140, 3))
+            : Clip(Key("rumble", s.Duration), () => FieldSound.Rumble(Rate, (float)s.Duration + 0.3f, true, 5));
+
+        static AudioClip EndSound() => Clip("tachyon-end", () => FieldSound.Sweep(Rate, 0.7f, 140, 1500, 4));
+
+        /// <summary>Make a bomb's sounds ahead of time (ModuleFFWBomb.OnStart), so its detonation doesn't stall a frame.</summary>
+        internal static void Prepare(FieldSpec s)
+        {
+            if (s.Kind == FieldKind.None) return;
+            StartSound(s);
+            if (s.Kind == FieldKind.Tachyon) EndSound();
+        }
+
+        // ---- State ----
+
         sealed class Frozen
         {
-            public readonly Dictionary<Part, (Vector3d vel, Vector3 ang)> Parts = new Dictionary<Part, (Vector3d, Vector3)>();
+            public readonly Dictionary<Part, (Vector3d vel, Vector3 ang, bool wasKinematic)> Parts = new Dictionary<Part, (Vector3d, Vector3, bool)>();
+            public readonly List<(Animation anim, AnimationState state, float speed)> Anims = new List<(Animation, AnimationState, float)>();
+            public readonly List<(Animator animator, float speed)> Animators = new List<(Animator, float)>();
+            public KerbalEVA Eva;
         }
 
         sealed class Field
@@ -28,17 +71,20 @@ namespace FarFutureWeaponry
             public float Start;
             public string Source, Weapon, BlastModel, BlastSound;
             public bool Blasted, EndSound;
-            public Color Edge, Core;
+            public Color Edge, Core, SphereColour;
             public GameObject Go;
             public Light Light;
             public AudioSource Audio;
-            public readonly List<AudioClip> Clips = new List<AudioClip>();
+            public Transform SphereT;
             public Mesh Sphere;
             public Material SphereMat;
             public Color[] SphereColours;
             public Vector3[] SphereNormals;
+            public ParticleSystem Air, Shimmer, NearShimmer;
+            public readonly List<Material> Materials = new List<Material>();
             public List<DestructibleBuilding> Buildings;
             public readonly Dictionary<Vessel, Frozen> Frozen = new Dictionary<Vessel, Frozen>();
+            public readonly HashSet<Part> FrozenParts = new HashSet<Part>();   // (a piece breaking off a frozen craft is already frozen)
         }
 
         sealed class Flash
@@ -51,9 +97,8 @@ namespace FarFutureWeaponry
 
         readonly List<Field> fields = new List<Field>();
         readonly List<Flash> flashes = new List<Flash>();
-        readonly List<ShatterFx> shatters = new List<ShatterFx>();
+        readonly List<(ShatterFx fx, float start)> shatters = new List<(ShatterFx, float)>();
         readonly List<Part> doomed = new List<Part>();
-        readonly List<Vessel> gone = new List<Vessel>();
 
         void Awake()
         {
@@ -81,7 +126,7 @@ namespace FarFutureWeaponry
                 flashes.Add(new Flash
                 {
                     Where = Visuals.ToFrame(where), Start = now, Seconds = Mathf.Max(0.2f, bomb.flashSeconds), Radius = bomb.flashRadius,
-                    Edge = c, Core = Color.Lerp(c, Color.white, 0.7f), Light = MakeLight(where, c)
+                    Edge = c, Core = Color.Lerp(c, Color.white, 0.7f), Light = Vfxr.Present ? null : MakeLight(where, c)
                 });
             }
             if (spec.Kind == FieldKind.None) return;
@@ -93,42 +138,30 @@ namespace FarFutureWeaponry
             };
             switch (spec.Kind)
             {
-                case FieldKind.Gravity: f.Edge = new Color(0.75f, 0.8f, 1f); f.Core = Color.white; break;
+                case FieldKind.Gravity: f.Edge = new Color(0.75f, 0.8f, 1f); f.Core = Color.white; f.SphereColour = new Color(0.85f, 0.9f, 1f); break;
                 case FieldKind.Warp: f.Edge = new Color(0.3f, 0.5f, 1f); f.Core = new Color(0.9f, 0.95f, 1f); break;
-                default: f.Edge = new Color(0.25f, 1f, 0.4f); f.Core = new Color(0.85f, 1f, 0.85f); break;
+                default: f.Edge = new Color(0.25f, 1f, 0.4f); f.Core = new Color(0.85f, 1f, 0.85f); f.SphereColour = new Color(0.25f, 1f, 0.4f); break;
             }
             f.Go = new GameObject("FFW field " + spec.Kind);
             f.Go.transform.position = where;
-            f.Light = f.Go.AddComponent<Light>();
-            f.Light.type = LightType.Point; f.Light.color = f.Edge; f.Light.intensity = 0; f.Light.shadows = LightShadows.None;
+            if (!Vfxr.Present) f.Light = MakeLight(where, f.Edge).GetComponent<Light>();
             f.Audio = f.Go.AddComponent<AudioSource>();
             f.Audio.spatialBlend = 1; f.Audio.dopplerLevel = 0; f.Audio.rolloffMode = AudioRolloffMode.Logarithmic;
             f.Audio.minDistance = 30; f.Audio.maxDistance = (float)spec.Radius * 6;
             f.Audio.volume = GameSettings.SHIP_VOLUME;
+            f.Audio.PlayOneShot(StartSound(spec));
 
-            const int rate = 44100;
+            if (spec.Kind == FieldKind.Tachyon || spec.Kind == FieldKind.Gravity) MakeSphere(f);
+            if (spec.Kind == FieldKind.Gravity || spec.Kind == FieldKind.Warp) f.Air = AirParticles(f);
             if (spec.Kind == FieldKind.Tachyon)
             {
-                Play(f, FieldSound.Sweep(rate, 0.9f, 1400, 140, 3));
-                f.Sphere = Visuals.Sphere();
-                f.SphereNormals = f.Sphere.vertices;
-                f.SphereColours = new Color[f.SphereNormals.Length];
-                f.SphereMat = Visuals.Additive(Visuals.White, new Color(0.5f, 0.5f, 0.5f, 0.5f));
-                var s = new GameObject("FFW tachyon sphere");
-                s.transform.SetParent(f.Go.transform, false);
-                s.AddComponent<MeshFilter>().sharedMesh = f.Sphere;
-                var mr = s.AddComponent<MeshRenderer>();
-                mr.sharedMaterial = f.SphereMat;
-                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; mr.receiveShadows = false;
+                f.Shimmer = ShimmerParticles(f, false);
+                f.NearShimmer = ShimmerParticles(f, true);
                 if (bomb.shatter)
                 {
                     ShatterFx fx = ShatterFx.Capture(bomb.part, (float)spec.Duration);
-                    if (fx != null) shatters.Add(fx);
+                    if (fx != null) shatters.Add((fx, now));
                 }
-            }
-            else
-            {
-                Play(f, FieldSound.Rumble(rate, (float)spec.Duration + 0.3f, true, 5));
             }
             if (spec.Kind == FieldKind.Warp && spec.InnerRadius > 0)
             {
@@ -147,15 +180,105 @@ namespace FarFutureWeaponry
             go.transform.position = where;
             var l = go.AddComponent<Light>();
             l.type = LightType.Point; l.color = c; l.intensity = 0; l.shadows = LightShadows.None;
+            l.range = FallbackLightRange;
             return l;
         }
 
-        static void Play(Field f, float[] samples)
+        void MakeSphere(Field f)
         {
-            var clip = AudioClip.Create("FFW field", samples.Length, 1, 44100, false);
-            clip.SetData(samples, 0);
-            f.Clips.Add(clip);
-            f.Audio.PlayOneShot(clip);
+            f.Sphere = Visuals.Sphere();
+            f.SphereNormals = f.Sphere.vertices;
+            f.SphereColours = new Color[f.SphereNormals.Length];
+            f.SphereMat = Visuals.Additive(Visuals.White, new Color(0.5f, 0.5f, 0.5f, 0.5f));
+            var s = new GameObject("FFW field sphere");
+            s.transform.SetParent(f.Go.transform, false);
+            s.AddComponent<MeshFilter>().sharedMesh = f.Sphere;
+            var mr = s.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = f.SphereMat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; mr.receiveShadows = false;
+            f.SphereT = s.transform;
+            s.SetActive(false);
+        }
+
+        /// <summary>
+        /// Air drawn in: pale, stretched wisps born on a shell just beyond the radius that rush to the centre
+        /// (a shockwave played backwards).
+        /// </summary>
+        ParticleSystem AirParticles(Field f)
+        {
+            float R = (float)f.Spec.Radius, life = f.Spec.Kind == FieldKind.Warp ? 2.2f : 1.4f;
+            var ps = NewParticles(f, "FFW air inflow", false, out Material mat);
+            var main = ps.main;
+            main.startLifetime = life;
+            main.startSpeed = -R * 1.1f / life;                // inward along the shell's normal: reaches the centre as it dies
+            main.startSize = new ParticleSystem.MinMaxCurve(R * 0.05f, R * 0.12f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.85f, 0.88f, 0.95f, 0.10f), new Color(0.95f, 0.96f, 1f, 0.18f));
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.maxParticles = 1500;
+            var shape = ps.shape;
+            shape.enabled = true; shape.shapeType = ParticleSystemShapeType.Sphere; shape.radius = R * 1.1f; shape.radiusThickness = 0;
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            col.color = Fade(new[] { (0f, 0f), (0.25f, 1f), (0.8f, 0.8f), (1f, 0f) });
+            var r = ps.GetComponent<ParticleSystemRenderer>();
+            r.renderMode = ParticleSystemRenderMode.Stretch; r.velocityScale = 0.08f; r.lengthScale = 1.5f;
+            var em = ps.emission; em.rateOverTime = 0;
+            ps.Play();
+            return ps;
+        }
+
+        /// <summary>
+        /// The tachyon field's shimmer: green and white glints twinkling all through the dome, and (near) a finer one
+        /// round the camera while it's inside, so the field shows up close as well as from afar.
+        /// </summary>
+        ParticleSystem ShimmerParticles(Field f, bool near)
+        {
+            float R = (float)f.Spec.Radius;
+            var ps = NewParticles(f, near ? "FFW tachyon shimmer (near)" : "FFW tachyon shimmer", true, out Material mat);
+            var main = ps.main;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(1.2f, 2.8f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.2f, near ? 0.8f : 3f);
+            main.startSize = near ? new ParticleSystem.MinMaxCurve(0.08f, 0.35f) : new ParticleSystem.MinMaxCurve(R * 0.004f, R * 0.012f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.3f, 1f, 0.45f, 1f), new Color(0.85f, 1f, 0.9f, 1f));
+            main.simulationSpace = near ? ParticleSystemSimulationSpace.World : ParticleSystemSimulationSpace.Local;
+            main.maxParticles = near ? 600 : 2500;
+            var shape = ps.shape;
+            shape.enabled = true; shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = near ? 40 : R * 0.97f; shape.radiusThickness = 1;
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            col.color = Fade(new[] { (0f, 0f), (0.15f, 1f), (0.35f, 0.25f), (0.55f, 1f), (0.75f, 0.3f), (0.9f, 0.9f), (1f, 0f) });   // twinkle
+            var em = ps.emission; em.rateOverTime = 0;
+            if (near) ps.transform.SetParent(null, true);
+            ps.Play();
+            return ps;
+        }
+
+        ParticleSystem NewParticles(Field f, string name, bool additive, out Material mat)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(f.Go.transform, false);
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.playOnAwake = false; main.loop = true; main.duration = 1;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            Shader sh = additive ? Visuals.AdditiveShader : (Shader.Find("KSP/Particles/Alpha Blended") ?? Visuals.AdditiveShader);
+            mat = new Material(sh) { mainTexture = Visuals.Glow };
+            mat.SetColor("_TintColor", new Color(0.5f, 0.5f, 0.5f, 0.5f));
+            r.sharedMaterial = mat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
+            f.Materials.Add(mat);
+            return ps;
+        }
+
+        static Gradient Fade((float t, float a)[] alphas)
+        {
+            var g = new Gradient();
+            var ak = new GradientAlphaKey[alphas.Length];
+            for (int i = 0; i < alphas.Length; i++) ak[i] = new GradientAlphaKey(alphas[i].a, alphas[i].t);
+            g.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) }, ak);
+            return g;
         }
 
         // ---- Physics ----
@@ -209,17 +332,27 @@ namespace FarFutureWeaponry
                 if (f.Spec.Kind == FieldKind.Gravity && !f.Blasted && t >= f.Spec.Duration)
                 {
                     f.Blasted = true;
-                    if (f.Spec.BlastTntKg > 0) Bda.CreateExplosion(centre, (float)f.Spec.BlastTntKg, f.BlastModel, f.BlastSound, f.Source, f.Weapon);
+                    if (f.Spec.BlastTntKg > 0)
+                    {
+                        // The damage is BDArmory's; the look is the pulse drawn here, not a fireball.
+                        Vfxr.SetLookAt(centre, 60, "none", 1);
+                        Bda.CreateExplosion(centre, (float)f.Spec.BlastTntKg, f.BlastModel, f.BlastSound, f.Source, f.Weapon);
+                    }
                 }
                 if (f.Spec.Kind == FieldKind.Tachyon && !f.EndSound && t >= f.Spec.Duration)
                 {
                     f.EndSound = true;
-                    Play(f, FieldSound.Sweep(44100, 0.7f, 140, 1500, 4));
+                    f.Audio.PlayOneShot(EndSound());
                 }
                 if (look.Over) { Remove(f); fields.RemoveAt(i); }
             }
         }
 
+        /// <summary>
+        /// Freeze a craft whose centre is inside the field: every part's rigidbody made kinematic (no gravity, no forces,
+        /// no drift), its velocities kept for the release; a kerbal on EVA can't move, and every kerbal's animations
+        /// (EVA and in the cockpits) stop.
+        /// </summary>
         void Freeze(Field f, Vessel v, Vector3 centre)
         {
             if (f.Frozen.ContainsKey(v)) return;
@@ -228,13 +361,30 @@ namespace FarFutureWeaponry
             var fr = new Frozen();
             foreach (Part p in v.parts)
             {
-                if (p == null || p.rb == null) continue;
-                fr.Parts[p] = ((Vector3d)p.rb.velocity - RestVelocity(p.rb.position), p.rb.angularVelocity);
+                if (p == null || p.rb == null || !f.FrozenParts.Add(p)) continue;
+                fr.Parts[p] = ((Vector3d)p.rb.velocity - RestVelocity(p.rb.position), p.rb.angularVelocity, p.rb.isKinematic);
+                p.rb.velocity = Vector3.zero; p.rb.angularVelocity = Vector3.zero;
+                p.rb.isKinematic = true;
+                foreach (ProtoCrewMember c in p.protoModuleCrew)
+                    if (c?.KerbalRef != null) PauseAnimations(fr, c.KerbalRef.gameObject);
+            }
+            if (v.isEVA)
+            {
+                fr.Eva = v.evaController;
+                if (fr.Eva != null) { fr.Eva.enabled = false; PauseAnimations(fr, fr.Eva.gameObject); }
             }
             f.Frozen[v] = fr;
-            Log.Info($"Tachyon field froze {v.vesselName} ({v.srfSpeed:0} m/s).");
+            Log.Info($"Tachyon field froze {v.vesselName} ({v.srfSpeed:0} m/s{(v.isEVA ? ", kerbal on EVA" : "")}).");
         }
 
+        static void PauseAnimations(Frozen fr, GameObject go)
+        {
+            foreach (Animation a in go.GetComponentsInChildren<Animation>())
+                foreach (AnimationState s in a) { fr.Anims.Add((a, s, s.speed)); s.speed = 0; }
+            foreach (Animator a in go.GetComponentsInChildren<Animator>()) { fr.Animators.Add((a, a.speed)); a.speed = 0; }
+        }
+
+        /// <summary>While frozen: keep it so (KSP may have changed a part's rigidbody, e.g. after a joint broke).</summary>
         static void Hold(Field f)
         {
             foreach (var kv in f.Frozen)
@@ -243,9 +393,9 @@ namespace FarFutureWeaponry
                 foreach (var pv in kv.Value.Parts)
                 {
                     Part p = pv.Key;
-                    if (p == null || p.rb == null) continue;
-                    p.rb.velocity = RestVelocity(p.rb.position);
-                    p.rb.angularVelocity = Vector3.zero;
+                    if (p == null || p.rb == null || p.rb.isKinematic) continue;
+                    p.rb.velocity = RestVelocity(p.rb.position); p.rb.angularVelocity = Vector3.zero;
+                    p.rb.isKinematic = true;
                 }
             }
         }
@@ -254,17 +404,25 @@ namespace FarFutureWeaponry
         {
             foreach (var kv in f.Frozen)
             {
-                if (kv.Key == null) continue;
-                foreach (var pv in kv.Value.Parts)
+                Frozen fr = kv.Value;
+                foreach (var pv in fr.Parts)
                 {
                     Part p = pv.Key;
                     if (p == null || p.rb == null) continue;
-                    p.rb.velocity = RestVelocity(p.rb.position) + pv.Value.vel;
-                    p.rb.angularVelocity = pv.Value.ang;
+                    if (kv.Key != null && !kv.Key.packed) p.rb.isKinematic = pv.Value.wasKinematic;
+                    if (!p.rb.isKinematic)
+                    {
+                        p.rb.velocity = RestVelocity(p.rb.position) + pv.Value.vel;
+                        p.rb.angularVelocity = pv.Value.ang;
+                    }
                 }
-                Log.Info($"Tachyon field released {kv.Key.vesselName} ({kv.Key.srfSpeed:0} m/s).");
+                foreach (var (anim, state, speed) in fr.Anims) if (anim != null && state != null) state.speed = speed;
+                foreach (var (animator, speed) in fr.Animators) if (animator != null) animator.speed = speed;
+                if (fr.Eva != null) fr.Eva.enabled = true;
+                if (kv.Key != null) Log.Info($"Tachyon field released {kv.Key.vesselName}.");
             }
             f.Frozen.Clear();
+            f.FrozenParts.Clear();
         }
 
         // ---- Looks ----
@@ -280,12 +438,21 @@ namespace FarFutureWeaponry
                 Vector3 centre = Visuals.FromFrame(f.Where);
                 f.Go.transform.position = centre;
                 if (look.LensStrength > 1e-3 || look.RingAmp > 1e-3)
-                    Vfxr.Lens(centre, (float)look.LensRadius, (float)look.LensStrength, (float)look.RingRadius, (float)look.RingAmp);
+                    Vfxr.LensCore(centre, (float)look.LensRadius, (float)look.LensStrength, (float)look.CoreShare, (float)look.RingRadius, (float)look.RingAmp);
+                if (look.InRingAmp > 1e-3)
+                    Vfxr.LensCore(centre, (float)look.InRingRadius, 0, 0, (float)look.InRingRadius, (float)look.InRingAmp);
                 if (look.Flash > 0.003)
                     Vfxr.Glow(centre, (float)look.FlashRadius, (float)look.Flash, 0.2f, f.Edge, f.Core);
-                f.Light.intensity = (float)look.Flash * 3;
-                f.Light.range = (float)Mathf.Max(50, (float)look.FlashRadius * 3);
+                if (f.Light != null) { f.Light.transform.position = centre; f.Light.intensity = Mathf.Min(8, (float)look.Flash * 3); }
                 if (f.Sphere != null) DrawSphere(f, look, centre, cam, t);
+                if (f.Air != null) { var em = f.Air.emission; em.rateOverTime = look.Pulling ? (f.Spec.Kind == FieldKind.Warp ? 260 : 160) : 0; }
+                if (f.Shimmer != null) { var em = f.Shimmer.emission; em.rateOverTime = look.Freezing ? 900 : 0; }
+                if (f.NearShimmer != null)
+                {
+                    bool inside = cam != null && (cam.transform.position - centre).sqrMagnitude < f.Spec.Radius * f.Spec.Radius;
+                    if (cam != null) f.NearShimmer.transform.position = cam.transform.position;
+                    var em = f.NearShimmer.emission; em.rateOverTime = look.Freezing && inside ? 300 : 0;
+                }
             }
             for (int i = flashes.Count - 1; i >= 0; i--)
             {
@@ -300,40 +467,33 @@ namespace FarFutureWeaponry
                 Vector3 at = Visuals.FromFrame(fl.Where);
                 float p = 2.5f * Mathf.Exp(-age / (fl.Seconds * 0.3f)) * (1 - age / fl.Seconds);
                 Vfxr.Glow(at, fl.Radius, p, 0.2f, fl.Edge, fl.Core);
-                if (fl.Light != null) { fl.Light.transform.position = at; fl.Light.intensity = p * 3; fl.Light.range = fl.Radius * 2; }
+                if (fl.Light != null) { fl.Light.transform.position = at; fl.Light.intensity = Mathf.Min(8, p * 3); }
             }
             for (int i = shatters.Count - 1; i >= 0; i--)
             {
-                ShatterFx s = shatters[i];
-                s.Tick(now - Start0(s), Time.deltaTime);
-                if (s.Done) shatters.RemoveAt(i);
+                var (fx, start) = shatters[i];
+                fx.Tick(now - start, Time.deltaTime);
+                if (fx.Done) shatters.RemoveAt(i);
             }
-        }
-
-        // Shatter effects count time from their own capture.
-        readonly Dictionary<ShatterFx, float> shatterStart = new Dictionary<ShatterFx, float>();
-        float Start0(ShatterFx s)
-        {
-            if (!shatterStart.TryGetValue(s, out float t0)) shatterStart[s] = t0 = Time.time;
-            return t0;
         }
 
         static void DrawSphere(Field f, FieldLook look, Vector3 centre, Camera cam, float t)
         {
-            Transform st = f.Go.transform.GetChild(0);
             float r = (float)look.SphereRadius;
-            st.gameObject.SetActive(r > 0.5f);
-            if (r <= 0.5f) return;
-            st.localScale = Vector3.one * r;
+            bool on = r > 0.5f && look.SphereAlpha > 0.003;
+            f.SphereT.gameObject.SetActive(on);
+            if (!on) return;
+            f.SphereT.localScale = Vector3.one * r;
             Vector3 eye = cam != null ? (cam.transform.position - centre) / r : Vector3.up * 10;
             float a = (float)look.SphereAlpha;
+            Color c = f.SphereColour;
             for (int i = 0; i < f.SphereNormals.Length; i++)
             {
                 Vector3 n = f.SphereNormals[i];
                 Vector3 view = (n - eye).normalized;
                 float rim = 1 - Mathf.Abs(Vector3.Dot(n, view));
                 float k = a * (0.05f + 0.95f * rim * rim * rim) * (0.85f + 0.15f * Mathf.Sin(n.y * 25 + t * 3));
-                f.SphereColours[i] = new Color(0.25f * k, 1f * k, 0.4f * k, k);
+                f.SphereColours[i] = new Color(c.r * k, c.g * k, c.b * k, k);
             }
             f.Sphere.colors = f.SphereColours;
         }
@@ -341,12 +501,15 @@ namespace FarFutureWeaponry
         void Remove(Field f)
         {
             if (f.Frozen.Count > 0) ReleaseAll(f);
-            if (f.Light != null) f.Light.enabled = false;
-            if (f.Go != null && f.Go.transform.childCount > 0) f.Go.transform.GetChild(0).gameObject.SetActive(false);
-            if (f.Go != null) Destroy(f.Go, 3);   // (let the last sound finish)
+            if (f.Light != null) Destroy(f.Light.gameObject);
+            if (f.SphereT != null) f.SphereT.gameObject.SetActive(false);
+            foreach (ParticleSystem ps in new[] { f.Air, f.Shimmer, f.NearShimmer })
+                if (ps != null) { var em = ps.emission; em.rateOverTime = 0; }
+            if (f.NearShimmer != null) Destroy(f.NearShimmer.gameObject, 3);
+            if (f.Go != null) Destroy(f.Go, 3);   // (let the last sound and particles finish)
             if (f.Sphere != null) Destroy(f.Sphere);
             if (f.SphereMat != null) Destroy(f.SphereMat);
-            foreach (AudioClip c in f.Clips) Destroy(c, 3);
+            foreach (Material m in f.Materials) Destroy(m, 3.5f);
         }
 
         void OnDestroy()
@@ -356,7 +519,7 @@ namespace FarFutureWeaponry
             fields.Clear();
             foreach (Flash fl in flashes) if (fl.Light != null) Destroy(fl.Light.gameObject);
             flashes.Clear();
-            foreach (ShatterFx s in shatters) s.Clear();
+            foreach (var (fx, _) in shatters) fx.Clear();
             shatters.Clear();
             if (Instance == this) Instance = null;
         }

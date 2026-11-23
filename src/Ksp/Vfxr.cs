@@ -15,6 +15,8 @@ namespace FarFutureWeaponry
         static Func<Vector3, float, float, float, float, bool> lens;
         static Func<Vector3, float, float, float, Color, Color, bool> glow;
         static Action<Part, string> setLook;
+        static Func<Vector3, float, float, float, float, float, bool> lensCore;   // EffectsApi 2
+        static Action<Vector3, float, string, float> setLookAt;                    // EffectsApi 2
 
         public static bool Present { get; private set; }
 
@@ -40,6 +42,11 @@ namespace FarFutureWeaponry
                     api.GetMethod("Glow", new[] { typeof(Vector3), typeof(float), typeof(float), typeof(float), typeof(Color), typeof(Color) }));
                 setLook = (Action<Part, string>)Delegate.CreateDelegate(typeof(Action<Part, string>),
                     api.GetMethod("SetPartLook", new[] { typeof(Part), typeof(string) }));
+                MethodInfo m = api.GetMethod("LensCore", new[] { typeof(Vector3), typeof(float), typeof(float), typeof(float), typeof(float), typeof(float) });
+                if (m != null) lensCore = (Func<Vector3, float, float, float, float, float, bool>)Delegate.CreateDelegate(typeof(Func<Vector3, float, float, float, float, float, bool>), m);
+                m = api.GetMethod("SetLookAt", new[] { typeof(Vector3), typeof(float), typeof(string), typeof(float) });
+                if (m != null) setLookAt = (Action<Vector3, float, string, float>)Delegate.CreateDelegate(typeof(Action<Vector3, float, string, float>), m);
+                if (lensCore == null || setLookAt == null) Log.Warn("VFX Reconfigured's EffectsApi is version 1: the gravity bomb keeps a full black core and its closing blast is drawn as a fireball. Update VFX Reconfigured to 0.9.0.");
                 Present = true;
                 object version = api.GetField("Version")?.GetValue(null);
                 Log.Info($"VFX Reconfigured EffectsApi {version} found.");
@@ -53,6 +60,13 @@ namespace FarFutureWeaponry
 
         public static bool Lens(Vector3 position, float radius, float strength, float ringRadius, float ringAmp) =>
             lens != null && lens(position, radius, strength, ringRadius, ringAmp);
+
+        /// <summary>A lens with its black core's size (EffectsApi 2); on version 1, the usual core.</summary>
+        public static bool LensCore(Vector3 position, float radius, float strength, float coreShare, float ringRadius, float ringAmp) =>
+            lensCore != null ? lensCore(position, radius, strength, coreShare, ringRadius, ringAmp) : Lens(position, radius, strength, ringRadius, ringAmp);
+
+        /// <summary>A look for explosions near a point for a while (EffectsApi 2); nothing on version 1.</summary>
+        public static void SetLookAt(Vector3 position, float within, string look, float seconds) => setLookAt?.Invoke(position, within, look, seconds);
 
         public static bool Glow(Vector3 position, float radius, float power, float coreShare, Color edge, Color core) =>
             glow != null && glow(position, radius, power, coreShare, edge, core);
