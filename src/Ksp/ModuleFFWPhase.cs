@@ -66,7 +66,6 @@ namespace FarFutureWeaponry
                             foreach (Collider m in mine)
                                 if (c != null && m != null) Physics.IgnoreCollision(m, c, true);
                     Vector3 inside = target.CoM;
-                    part.FindModuleImplementing<ModuleFFWTrail>()?.Restart();
                     vessel.SetPosition(inside, false);
                     ModuleFFWForceField.Pierce(target, 3);   // (it passes through force fields too)
                     FieldManager.Instance?.PhaseFlash(inside, colour);
@@ -84,7 +83,7 @@ namespace FarFutureWeaponry
         /// <summary>Out of phase: unseen, unheard, touching nothing, held still (it stays clear of BDArmory's miss logic: its target stays ahead).</summary>
         void Vanish()
         {
-            part.FindModuleImplementing<ModuleFFWTrail>()?.Restart();
+            part.FindModuleImplementing<ModuleFFWTrail>()?.Hide();
             foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
             foreach (Collider c in part.GetComponentsInChildren<Collider>(true)) c.enabled = false;
             foreach (AudioSource a in part.GetComponentsInChildren<AudioSource>(true)) a.mute = true;

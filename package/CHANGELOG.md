@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+- Quantum Phase-Shift Missile: its trail vanishes with it, instead of staying behind and moving about while it's gone.
+
 ## 0.8.0
 
 The countermeasures: every part from the design is now in. Needs Harmony (HarmonyKSP) for the force field and the

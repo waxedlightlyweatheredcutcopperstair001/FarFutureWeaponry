@@ -128,9 +128,19 @@ namespace FarFutureWeaponry
             missile = Bda.FindMissile(part);
         }
 
+        bool hidden;
+
+        /// <summary>Remove the trail at once and lay no more (the phase-shift missile vanishing: its trail goes with it).</summary>
+        public void Hide()
+        {
+            hidden = true;
+            if (trail != null) Destroy(trail.gameObject);
+            trail = null;
+        }
+
         void Update()
         {
-            if (trail != null || missile == null || !Bda.MissileFired(missile)) return;
+            if (hidden || trail != null || missile == null || !Bda.MissileFired(missile)) return;
             trail = RibbonTrail.Create(part.transform, Rgba.Parse(color, new Rgba(1, 1, 1, 1)).ToColor(), width, fade, spacing, flicker, crackle);
         }
 
