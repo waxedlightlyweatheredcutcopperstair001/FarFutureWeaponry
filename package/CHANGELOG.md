@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.8.0
+
+The countermeasures: every part from the design is now in. Needs Harmony (HarmonyKSP) for the force field and the
+cloak's radar hiding.
+
+- **Cloaking Device**:
+  - Light ripples over the craft and it all but vanishes, plumes too, leaving a faint blue outline and a shimmer.
+  - Fools FFW optical tracking, BDArmory's heat and visual detection (through BDArmory's own cloak), and
+    anti-radiation missiles (no radar pings).
+- **Force Field Generator**:
+  - Blocks every kind of BDArmory damage, paid for in ElectricCharge in proportion to it.
+  - A shimmer as it comes up, then an electric-blue outline over the hull, and blue flashes where hits land.
+  - Tachyon weapons and the Quantum Phase-Shift Missile get through.
+- **Hologram Generator**:
+  - Six translucent, glitching copies of the craft fly in formation round it.
+  - FFW optical seekers will likely chase one of them.
+  - Flares and chaff come from the holograms for BDArmory's seekers.
+- **Signal Scrambler**: radar and CommNet off for craft nearby, remote craft can't be controlled, and you're hidden
+  from CommNet tracking. The screen glitches.
+- **Alcubierre Micro-Hop Drive**: a 500 m jump along your way, with space imploding at both ends. It breaks every
+  lock: FFW trackers, BDArmory radars and missiles.
+
 ## 0.7.1
 
 - Kessler Swarm Pod: 100 darts instead of 20, in a tighter cone, aimed where the target will be when they arrive. Each

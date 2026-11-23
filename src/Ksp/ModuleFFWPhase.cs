@@ -68,6 +68,7 @@ namespace FarFutureWeaponry
                     Vector3 inside = target.CoM;
                     part.FindModuleImplementing<ModuleFFWTrail>()?.Restart();
                     vessel.SetPosition(inside, false);
+                    ModuleFFWForceField.Pierce(target, 3);   // (it passes through force fields too)
                     FieldManager.Instance?.PhaseFlash(inside, colour);
                     phase = Phase.Back;
                     return;

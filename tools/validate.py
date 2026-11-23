@@ -16,10 +16,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 NAME = 'FarFutureWeaponry'
 ASSET_EXT = ('.mu', '.png', '.dds', '.tga', '.ogg', '.wav', '.mbm')
-KNOWN_MODULES = {'ModuleWeapon', 'ModuleTurret', 'ModulePartVariants', 'ModuleCASE', 'MissileLauncher', 'BDExplosivePart', 'BDModuleNuke'}
+KNOWN_MODULES = {'ModuleWeapon', 'ModuleTurret', 'ModulePartVariants', 'ModuleCASE', 'MissileLauncher', 'BDExplosivePart', 'BDModuleNuke', 'ModuleCloakingDevice', 'CMDropper'}
 LOOKS = {'', 'none', 'antimatter', 'mushroom'}
 EFFECTS = {'none', 'gravity', 'warp', 'tachyon'}
-RESOURCES = {'ElectricCharge', 'Antimatter'}
+RESOURCES = {'ElectricCharge', 'Antimatter', 'CMFlare', 'CMChaff'}
 
 problems = []
 

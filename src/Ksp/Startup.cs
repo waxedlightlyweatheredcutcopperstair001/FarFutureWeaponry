@@ -15,12 +15,16 @@ namespace FarFutureWeaponry
             ("BDArmory", "BDArmory or BDArmory Lite", "every weapon is a BDArmory weapon"),
             ("VolumetricFXReconfigured", "VFX Reconfigured", "explosions and antimatter effects"),
             ("PhysicsRangeExtender", "Physics Range Extender", "long-range weapons"),
+            ("0Harmony", "Harmony (HarmonyKSP)", "the force field and the cloak's radar hiding"),
         };
 
         void Start()
         {
             Bda.Init();
             FfwShaders.Load();
+            HarmonyBridge.Init();
+            ModuleFFWForceField.InstallPatches();
+            ModuleFFWCloak.InstallPatch();
             var missing = new List<string>();
             foreach (var (assembly, name, why) in Required)
             {

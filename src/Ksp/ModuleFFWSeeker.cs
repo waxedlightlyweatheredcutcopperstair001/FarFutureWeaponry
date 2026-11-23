@@ -1,5 +1,6 @@
 using FarFutureWeaponry.Core;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace FarFutureWeaponry
 {
@@ -20,7 +21,10 @@ namespace FarFutureWeaponry
         PartModule missile;
         TrackerKind kind;
         Vector3d lastSeen;            // where it last saw the target (main body frame)
-        bool picked, seen;
+        bool picked, seen, decoyRolled;
+        float pickedAt;
+        int decoy = -1;                 // the hologram it's fooled into following (optical), or -1
+        [KSPField] public float decoyChance = 0.85f;
         public Vessel Target { get; private set; }
         public bool Tracking { get; private set; }
 
@@ -53,14 +57,35 @@ namespace FarFutureWeaponry
             {
                 picked = true;
                 Target = Targets.Choose(Bda.MissileSource(missile));
+                pickedAt = Time.time;
                 Log.Info($"{part.partInfo.title}: {Core.Tracking.Name(kind)} seeker on {(Target != null ? Target.vesselName : "nothing (no target set)")}.");
             }
             Vector3 me = part.transform.position;
+            // The target jumped away (micro-hop drive): every lock on it is broken.
+            if (Target != null && Targets.LockBrokenAt(Target) > pickedAt)
+            {
+                Log.Info($"{part.partInfo.title}: lost {Target.vesselName} (its locks were broken).");
+                Target = null;
+            }
             Tracking = Target != null && Targets.CanSee(kind, me, Target);
+            // Holograms: optical tracking is likely to take one for the real craft (decided once, when it first sees them).
+            Vector3 aimAt = Tracking ? Target.CoM : Vector3.zero;
+            if (Tracking && kind == TrackerKind.Optical)
+            {
+                Vector3? h0 = Targets.Hologram(Target, 0);
+                if (h0 != null && !decoyRolled)
+                {
+                    decoyRolled = true;
+                    if (Random.value < decoyChance) decoy = Random.Range(0, 6);
+                    if (decoy >= 0) Log.Info($"{part.partInfo.title}: fooled by a hologram of {Target.vesselName}.");
+                }
+                Vector3? h = decoy >= 0 ? Targets.Hologram(Target, decoy) : null;
+                if (h != null) aimAt = h.Value;
+            }
             if (Tracking)
             {
                 // Aim where it will be: relative motion over the surface, at the missile's own speed (at least 200 m/s).
-                Vector3 rel = Target.CoM - me;
+                Vector3 rel = aimAt - me;
                 Vector3 tv = Target.srf_velocity, mv = vessel.srf_velocity;
                 double speed = Mathf.Max(200, mv.magnitude);
                 Core.Tracking.Lead(rel.x, rel.y, rel.z, tv.x, tv.y, tv.z, speed, leadSeconds, out double ax, out double ay, out double az);

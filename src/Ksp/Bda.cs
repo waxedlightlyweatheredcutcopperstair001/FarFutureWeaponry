@@ -43,6 +43,11 @@ namespace FarFutureWeaponry
 
         const BindingFlags Any = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
 
+        static Assembly bdaAssembly;
+
+        /// <summary>A BDArmory type by full name, or null.</summary>
+        public static Type FindType(string name) { Init(); return bdaAssembly?.GetType(name); }
+
         public static void Init()
         {
             if (initialised) return;
@@ -50,6 +55,7 @@ namespace FarFutureWeaponry
             Assembly bda = null;
             foreach (var la in AssemblyLoader.loadedAssemblies)
                 if (la.name == "BDArmory") { bda = la.assembly; break; }
+            bdaAssembly = bda;
             if (bda == null)
             {
                 Log.Error("BDArmory is not installed: Far Future Weaponry's weapons need BDArmory or BDArmory Lite.");

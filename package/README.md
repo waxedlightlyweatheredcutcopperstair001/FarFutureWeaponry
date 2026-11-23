@@ -1,8 +1,8 @@
-# Far Future Weaponry 0.7.1
+# Far Future Weaponry 0.8.0
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
-This is an early version: every weapon from the design is in (guns, bombs, missiles), plus the Tachyon-be-gone. The other countermeasures come next. The models are placeholders, retinted from BDArmory, BDArmory
+Every weapon and countermeasure from the design is in. The models are still placeholders. The models are placeholders, retinted from BDArmory, BDArmory
 Extended and North Kerbin Dynamics parts.
 
 ## Requirements
@@ -10,6 +10,7 @@ Extended and North Kerbin Dynamics parts.
 - BDArmory Lite, or BDArmory (Continued)
 - VFX Reconfigured 0.11.0 or newer
 - Physics Range Extender
+- Harmony (HarmonyKSP): for the force field and the cloak's radar hiding
 - ModuleManager
 
 Optional: Far Future Technologies (its antimatter tanks feed the Antimatter-ial Rifle).
@@ -59,7 +60,12 @@ Drop them like any BDArmory bomb.
 
 | Part | What it does |
 |---|---|
-| **Tachyon-be-gone** | While it's on, the craft is immune to tachyon weapons: the Tachyon Bomb doesn't freeze it. |
+| **Tachyon-be-gone** | While it's on, the craft is immune to tachyon weapons (Tachyon Bomb, Tachyon Gun, Chronos Rust-Dart). |
+| **Cloaking Device** | Light ripples over the craft and it all but vanishes, plumes too: a faint blue outline and a shimmer are all that's left. Fools optical, infrared and anti-radiation tracking. 10 EC/s. |
+| **Force Field Generator** | A shimmer, then a steady electric-blue outline. Blocks incoming damage, each hit flashing blue, paid for in ElectricCharge (2 EC per point of damage). Collapses when the charge runs out. Tachyon weapons and phase-shifted missiles get through. |
+| **Hologram Generator** | Six glitchy copies of the craft round it for 30 s. Optical tracking likely follows one of them; they also throw decoy flares and chaff. 1500 EC, 60 s recharge. |
+| **Signal Scrambler** | Craft within 5 km lose radar and CommNet for 20 s, and remotely flown ones can't be controlled. Hides you from CommNet tracking. Your screen glitches. 2000 EC, 60 s recharge. |
+| **Alcubierre Micro-Hop Drive** | Jumps the craft 500 m along its way, with space imploding where it left and arrived, and breaks every lock on it. 5000 EC, 45 s recharge. |
 
 ## Antimatter
 

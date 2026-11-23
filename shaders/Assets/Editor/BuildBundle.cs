@@ -15,6 +15,9 @@ public static class BuildBundle
         "Assets/Shaders/RustOverlay.shader",
         "Assets/Shaders/ContourWave.shader",
         "Assets/Shaders/PhaseLens.shader",
+        "Assets/Shaders/ShieldOverlay.shader",
+        "Assets/Shaders/CloakOverlay.shader",
+        "Assets/Shaders/Hologram.shader",
     };
 
     public static void Build()

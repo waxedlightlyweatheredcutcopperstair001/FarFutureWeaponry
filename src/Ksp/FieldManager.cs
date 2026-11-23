@@ -172,6 +172,16 @@ namespace FarFutureWeaponry
             lenses.Add(new PhaseLensFx { Where = Visuals.ToFrame(at), Start = Time.time, Go = go, Mat = mr.sharedMaterial });
         }
 
+        /// <summary>
+        /// The micro-hop drive folding space: space caving in on a point (a ring of bent space collapsing inward), a flash,
+        /// and the phase lens's torn colours.
+        /// </summary>
+        internal void HopFlash(Vector3 at)
+        {
+            PhaseFlash(at, new Color(0.7f, 0.75f, 1f));
+            ripples.Add(new Ripple { Where = Visuals.ToFrame(at), Start = Time.time, Seconds = 0.5f, Radius = -45 });
+        }
+
         sealed class PhaseLensFx { public Vector3d Where; public float Start; public GameObject Go; public Material Mat; }
         readonly List<PhaseLensFx> lenses = new List<PhaseLensFx>();
         Mesh lensQuad;
@@ -678,7 +688,9 @@ namespace FarFutureWeaponry
                 Ripple r = ripples[i];
                 float x = (now - r.Start) / r.Seconds;
                 if (x >= 1) { ripples.RemoveAt(i); continue; }
-                Vfxr.LensCore(Visuals.FromFrame(r.Where), r.Radius, 0, 0, r.Radius * (0.2f + 1.3f * x), 1.2f * (1 - x));
+                // (a negative radius: a ring collapsing inward, an implosion; positive: spreading outward)
+                float R = Mathf.Abs(r.Radius), ring = r.Radius < 0 ? R * (1.4f - 1.3f * x) : R * (0.2f + 1.3f * x);
+                Vfxr.LensCore(Visuals.FromFrame(r.Where), R, r.Radius < 0 ? 0.3f * (1 - x) : 0, 0, ring, 1.2f * (1 - x));
             }
             for (int i = waves.Count - 1; i >= 0; i--)
             {

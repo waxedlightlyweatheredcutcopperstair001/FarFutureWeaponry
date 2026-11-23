@@ -121,6 +121,18 @@ MANIFEST = [
     ('BDAX', 'Parts/Lasers/TorsionCannon/Beam4.png', 'Parts/RepulsorBeam/Beam4.png', None),
     ('BDAX', 'Parts/Lasers/TorsionCannon/TorsionFire.ogg', 'Parts/RepulsorBeam/fire.ogg', None),
     ('BDAX', 'Parts/Lasers/TorsionCannon/BeamEnd.ogg', 'Parts/RepulsorBeam/end.ogg', None),
+    # Phase 4 countermeasures.
+    ('BDAX', 'Parts/CloakingDevice/model.mu', 'Parts/CloakingDevice/model.mu', None),
+    ('BDAX', 'Parts/CloakingDevice/cloakmodule.png', 'Parts/CloakingDevice/cloakmodule.png', BLUE),
+    ('BDAX', 'Parts/CloakingDevice/cloakmodule_E.png', 'Parts/CloakingDevice/cloakmodule_E.png', None),
+    ('BDAX', 'Parts/Repulsor/Model.mu', 'Parts/ForceField/Model.mu', None),
+    ('BDAX', 'Parts/Repulsor/EnergyCoupling.png', 'Parts/ForceField/EnergyCoupling.png', CYAN),
+    ('BDA', 'Parts/IRSTPod/model.mu', 'Parts/HologramGenerator/model.mu', None),
+    ('BDA', 'Parts/IRSTPod/irst.png', 'Parts/HologramGenerator/irst.png', TEAL),
+    ('BDA', 'Parts/radarDataReceiver/model.mu', 'Parts/SignalScrambler/model.mu', None),
+    ('BDA', 'Parts/radarDataReceiver/tex_dataReceiver.png', 'Parts/SignalScrambler/tex_dataReceiver.png', MAGENTA),
+    ('BDA', 'Parts/ecmJammer/model.mu', 'Parts/HopDrive/model.mu', None),
+    ('BDA', 'Parts/ecmJammer/tex_ecmj131.png', 'Parts/HopDrive/tex_ecmj131.png', DARKVIOLET),
     # Missile exhaust and engine sounds (BDArmory's: their paths differ between BDArmory and BDArmory Lite).
     ('BDA', 'Models/exhaust/smallExhaust.mu', 'FX/Exhaust/smallExhaust.mu', None),
     ('BDA', 'Models/exhaust/mediumExhaust.mu', 'FX/Exhaust/mediumExhaust.mu', None),

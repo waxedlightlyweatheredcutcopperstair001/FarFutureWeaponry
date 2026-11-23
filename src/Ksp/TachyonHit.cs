@@ -43,7 +43,7 @@ namespace FarFutureWeaponry
             }
             if (slowFactor < 1 && slowSeconds > 0 && !v.packed) Slow(v, slowFactor, slowSeconds, rustPerSecond);
             if (rustPerHit > 0) foreach (Part p in v.parts) if (p != null) ModuleFFWRust.AddRust(p, rustPerHit);
-            if (damage > 0) Bda.AddDamage(part, damage);
+            if (damage > 0) ModuleFFWForceField.Unshielded(() => Bda.AddDamage(part, damage));
         }
 
         static void Slow(Vessel v, float factor, float seconds, float rustPerSecond)

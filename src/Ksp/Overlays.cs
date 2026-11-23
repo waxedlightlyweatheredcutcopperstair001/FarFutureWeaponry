@@ -12,7 +12,7 @@ namespace FarFutureWeaponry
     internal static class FfwShaders
     {
         static bool loaded;
-        public static Shader Rust, Wave, PhaseLens;
+        public static Shader Rust, Wave, PhaseLens, Shield, Cloak, Hologram;
 
         public static void Load()
         {
@@ -31,9 +31,13 @@ namespace FarFutureWeaponry
                     case "FarFutureWeaponry/RustOverlay": Rust = s; break;
                     case "FarFutureWeaponry/ContourWave": Wave = s; break;
                     case "FarFutureWeaponry/PhaseLens": PhaseLens = s; break;
+                    case "FarFutureWeaponry/ShieldOverlay": Shield = s; break;
+                    case "FarFutureWeaponry/CloakOverlay": Cloak = s; break;
+                    case "FarFutureWeaponry/Hologram": Hologram = s; break;
                 }
             }
-            Log.Info($"Shaders: rust {(Rust != null ? "ok" : "MISSING")}, contour wave {(Wave != null ? "ok" : "MISSING")}, phase lens {(PhaseLens != null ? "ok" : "MISSING")}.");
+            Log.Info($"Shaders: rust {(Rust != null ? "ok" : "MISSING")}, contour wave {(Wave != null ? "ok" : "MISSING")}, phase lens {(PhaseLens != null ? "ok" : "MISSING")}, " +
+                     $"shield {(Shield != null ? "ok" : "MISSING")}, cloak {(Cloak != null ? "ok" : "MISSING")}, hologram {(Hologram != null ? "ok" : "MISSING")}.");
         }
     }
 
@@ -48,14 +52,17 @@ namespace FarFutureWeaponry
         readonly List<GameObject> objects = new List<GameObject>();
         public readonly MaterialPropertyBlock Block = new MaterialPropertyBlock();
         public readonly Material Material;
+        readonly bool follow;
 
-        public PartOverlay(Part part, Shader shader, string name)
+        /// <param name="followSource">shown only while the part's own renderer is (false for the cloak, which hides them)</param>
+        public PartOverlay(Part part, Shader shader, string name, bool followSource = true)
         {
+            follow = followSource;
             Material = new Material(shader) { name = name };
             foreach (MeshFilter mf in part.FindModelComponents<MeshFilter>())
             {
                 var src = mf != null ? mf.GetComponent<MeshRenderer>() : null;
-                if (src == null || mf.sharedMesh == null) continue;
+                if (src == null || mf.sharedMesh == null || mf.name.StartsWith("FFW ")) continue;   // (not other overlays)
                 var go = new GameObject(name);
                 go.layer = mf.gameObject.layer;
                 go.transform.SetParent(mf.transform, false);
@@ -66,7 +73,7 @@ namespace FarFutureWeaponry
                 r.sharedMaterials = mats;
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 r.receiveShadows = false;
-                r.enabled = src.enabled;
+                r.enabled = !follow || src.enabled;
                 renderers.Add(r);
                 objects.Add(go);
             }
@@ -82,7 +89,7 @@ namespace FarFutureWeaponry
                 MeshRenderer r = renderers[i];
                 if (r == null) continue;
                 var src = r.transform.parent != null ? r.transform.parent.GetComponent<MeshRenderer>() : null;
-                r.enabled = src == null || src.enabled;
+                r.enabled = !follow || src == null || src.enabled;
                 r.SetPropertyBlock(Block);
             }
         }

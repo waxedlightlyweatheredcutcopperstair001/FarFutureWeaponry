@@ -1,7 +1,7 @@
 # Far Future Weaponry
 
 Experimental weapons and armour for KSP 1.12.5, built on BDArmory. One package works with **BDArmory Lite** and full
-**BDArmory**. Requires VFX Reconfigured 0.9.0+, Physics Range Extender and ModuleManager. The player README and changelog are
+**BDArmory**. Requires VFX Reconfigured 0.11.0+, Physics Range Extender, ModuleManager and Harmony (HarmonyKSP; bound by reflection, so not needed to build). The player README and changelog are
 in `package/`.
 
 ## Layout
@@ -9,11 +9,11 @@ in `package/`.
 | Path | What |
 |---|---|
 | `src/Core/` | Pure logic, no Unity or KSP (unit-tested): antimatter energy, containment, effect curves, trail points, colours, charge sound, field timelines and pull (`Fields`), shatter grouping, field sounds, tracking and lead (`Tracking`), rust, darts, slowing |
-| `src/Ksp/` | KSP glue: `Bda` (BDArmory by reflection), `Vfxr` (VFX Reconfigured's EffectsApi by reflection), `Startup` (dependency checks), `ImpactFlashes`, `BulletTrails`, `ModuleFFWChargeSparks`, `ModuleFFWContainment`, `ModuleFFWBomb` + `ModuleFFWTachyonShield`, `FieldManager` (bomb fields and warhead effects: physics, looks, sounds), `TimeStop`, `ShatterFx`, `Targets` + `ModuleFFWSeeker` (FFW tracking), `ModuleFFWPhase`, `ModuleFFWRamjet`, `Darts` (`ModuleFFWDarts`, `DartManager`), `TachyonHit` + `ModuleFFWRust`, `ModuleFFWRepulsor`, `RibbonTrail` + `ModuleFFWTrail`, `Overlays` (`FfwShaders` bundle loader, `PartOverlay`: a second material drawn over a part's meshes), `Visuals` (procedural textures/meshes/materials) |
+| `src/Ksp/` | KSP glue: `Bda` (BDArmory by reflection), `Vfxr` (VFX Reconfigured's EffectsApi by reflection), `Startup` (dependency checks), `ImpactFlashes`, `BulletTrails`, `ModuleFFWChargeSparks`, `ModuleFFWContainment`, `ModuleFFWBomb` + `ModuleFFWTachyonShield`, `FieldManager` (bomb fields and warhead effects: physics, looks, sounds), `TimeStop`, `ShatterFx`, `Targets` + `ModuleFFWSeeker` (FFW tracking), `ModuleFFWPhase`, `ModuleFFWRamjet`, `Darts` (`ModuleFFWDarts`, `DartManager`), `TachyonHit` + `ModuleFFWRust`, `ModuleFFWRepulsor`, `RibbonTrail` + `ModuleFFWTrail`, `Overlays` (`FfwShaders` bundle loader, `PartOverlay`: a second material drawn over a part's meshes), `HarmonyBridge`, `ForceField`, `Cloak`, `Holograms`, `Countermeasures` (scrambler, hop drive, screen glitch), `Visuals` (procedural textures/meshes/materials) |
 | `configs/` | Shipped configs: `Parts/<Part>/part.cfg`, `Bullets.cfg`, `Resources.cfg` (fallback Antimatter definition), `Effects.cfg` (flash, hit-effect and trail definitions), `Rust.cfg` (ModuleFFWRust on every part) |
 | `assets/` | Borrowed placeholder models, textures, sounds and their licences, laid out as in the mod folder. Made by `tools/import_assets.py`; committed |
 | `package/` | Player README and CHANGELOG (shipped) |
-| `shaders/` | Unity project for the plugin's shaders (`RustOverlay`, `ContourWave`, `PhaseLens`; `Editor/BuildBundle.cs`) |
+| `shaders/` | Unity project for the plugin's shaders (`RustOverlay`, `ContourWave`, `PhaseLens`, `ShieldOverlay`, `CloakOverlay`, `Hologram`; `Editor/BuildBundle.cs`) |
 | `tests/` | Console test program for `src/Core` |
 | `tools/` | `build.py` (plugin), `package.py` (assemble + validate + zip, `--deploy`), `validate.py` (static checks), `make.py` (all of it), `release.py` (GitHub release), `import_assets.py` + `png.py` (borrow and tint assets), `localconfig.py` |
 
