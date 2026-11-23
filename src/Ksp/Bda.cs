@@ -232,6 +232,9 @@ namespace FarFutureWeaponry
         public static Vector3 MissileTargetPosition(PartModule missile) =>
             missile != null && missileTargetPosition != null ? (Vector3)missileTargetPosition.GetValue(missile, null) : Vector3.zero;
 
+        public static Vector3 MissileTargetVelocity(PartModule missile) =>
+            missile != null && missileTargetVelocity != null ? (Vector3)missileTargetVelocity.GetValue(missile, null) : Vector3.zero;
+
         /// <summary>Steer a missile (targetingType none: BDArmory leaves these alone) at a point.</summary>
         public static void SteerMissile(PartModule missile, Vector3 position, Vector3 velocity, bool acquired)
         {

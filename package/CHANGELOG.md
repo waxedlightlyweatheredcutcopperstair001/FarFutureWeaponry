@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1
+
+- Kessler Swarm Pod: 100 darts instead of 20, in a tighter cone, aimed where the target will be when they arrive. Each
+  dart goes through up to three parts (a third less damage each time) instead of stopping at the first.
+
 ## 0.7.0
 
 - **Chronos Rust-Dart**:

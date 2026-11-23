@@ -5,18 +5,20 @@ using UnityEngine;
 namespace FarFutureWeaponry
 {
     /// <summary>
-    /// The Kessler Swarm Pod: a BDArmory anti-radiation missile that, within <see cref="splitDistance"/> of its target,
-    /// splits with a small pop into a cone of unguided tungsten darts at hypervelocity. Each dart does little on its own
-    /// but shreds what's fragile (solar panels, radiators, wings and control surfaces, exposed engines).
+    /// The Kessler Swarm Pod: a BDArmory radar-guided missile that, within <see cref="splitDistance"/> of its target,
+    /// splits with a small pop into a cone of unguided tungsten darts at hypervelocity, aimed where the target will be when
+    /// they get there. Each dart does little on its own, goes through up to <see cref="penetrations"/> parts (a third less
+    /// damage each time), and shreds what's fragile (solar panels, radiators, wings and control surfaces, exposed engines).
     /// </summary>
     public class ModuleFFWDarts : PartModule
     {
         [KSPField] public float splitDistance = 1500;
-        [KSPField] public int darts = 20;
+        [KSPField] public int darts = 100;
         [KSPField] public float dartSpeed = 1800;     // m/s added to the missile's own speed
         [KSPField] public float spread = 2.5f;        // cone half-angle (degrees)
         [KSPField] public float damage = 80;          // per dart
         [KSPField] public float fragileMultiplier = 5;
+        [KSPField] public int penetrations = 3;       // parts each dart goes through
         [KSPField] public string trailColor = "255, 150, 50, 255";
 
         PartModule missile;
@@ -40,9 +42,14 @@ namespace FarFutureWeaponry
             Vector3 me = part.transform.position;
             if ((target - me).sqrMagnitude > splitDistance * splitDistance) return;
             split = true;
-            Vector3 aim = (target - me).normalized;
+            // Where the target will be when the darts arrive (in the missile's own frame: the darts leave it at dartSpeed).
+            Vector3 tv = Bda.MissileTargetVelocity(missile), mv = vessel.srf_velocity;
+            Vector3 rel = target - me;
+            double speed = dartSpeed;
+            Core.Tracking.Lead(rel.x, rel.y, rel.z, tv.x - mv.x, tv.y - mv.y, tv.z - mv.z, speed, 5, out double ax, out double ay, out double az);
+            Vector3 aim = new Vector3((float)ax, (float)ay, (float)az).normalized;
             Color c = Rgba.Parse(trailColor, new Rgba(1, 0.6f, 0.2f, 1)).ToColor();
-            DartManager.Instance?.Launch(me, vessel.srf_velocity, aim, darts, dartSpeed, spread, damage, fragileMultiplier, c, vessel);
+            DartManager.Instance?.Launch(me, vessel.srf_velocity, aim, darts, dartSpeed, spread, damage, fragileMultiplier, penetrations, c, vessel);
             Log.Info($"{part.partInfo.title}: split into {darts} darts {Vector3.Distance(target, me):0} m from its target.");
             Bda.DetonateMissile(missile);   // (its small charge: the pop)
         }
@@ -59,6 +66,8 @@ namespace FarFutureWeaponry
             public Vector3d Pos;       // main body frame
             public Vector3d Vel;       // main body frame (over the surface)
             public float Born, Damage, Fragile;
+            public int Pens;
+            public readonly HashSet<Part> Hit = new HashSet<Part>();
             public RibbonTrail Trail;
             public Vessel Source;
         }
@@ -70,7 +79,7 @@ namespace FarFutureWeaponry
         void Awake() { Instance = this; }
         void Start() { mask = LayerMask.GetMask("Default", "Local Scenery", "TerrainColliders", "EVA", "WheelCollidersIgnore", "WheelColliders"); }
 
-        internal void Launch(Vector3 from, Vector3 surfaceVelocity, Vector3 aim, int n, float speed, float spreadDeg, float damage, float fragile, Color colour, Vessel source)
+        internal void Launch(Vector3 from, Vector3 surfaceVelocity, Vector3 aim, int n, float speed, float spreadDeg, float damage, float fragile, int pens, Color colour, Vessel source)
         {
             double[] dirs = Darts.Cone(n, spreadDeg);
             Quaternion rot = Quaternion.LookRotation(aim);
@@ -83,8 +92,8 @@ namespace FarFutureWeaponry
                 {
                     Pos = Visuals.ToFrame(from + dir * 2),
                     Vel = frame != null ? (Vector3d)frame.InverseTransformDirection(v) : (Vector3d)v,
-                    Born = Time.time, Damage = damage, Fragile = fragile, Source = source,
-                    Trail = RibbonTrail.Create(null, colour, 0.25f, 0.35f, 6)
+                    Born = Time.time, Damage = damage, Fragile = fragile, Source = source, Pens = Mathf.Max(1, pens),
+                    Trail = RibbonTrail.Create(null, colour, 0.2f, 0.3f, 8)
                 };
                 d.Trail.Add(from);
                 darts.Add(d);
@@ -107,15 +116,22 @@ namespace FarFutureWeaponry
                 Vector3d next = d.Pos + d.Vel * dt;
                 Vector3 b = Visuals.FromFrame(next);
                 bool done = now - d.Born > Life;
-                if (Physics.Raycast(a, b - a, out RaycastHit hit, (b - a).magnitude, mask, QueryTriggerInteraction.Ignore))
+                // Through what it hits: each part once, up to its penetrations, a third weaker each time; the ground stops it.
+                Vector3 seg = b - a;
+                float left = seg.magnitude;
+                Vector3 from = a, dir = left > 1e-4f ? seg / left : Vector3.forward;
+                while (!done && left > 0 && Physics.Raycast(from, dir, out RaycastHit hit, left, mask, QueryTriggerInteraction.Ignore))
                 {
                     Part p = hit.collider.GetComponentInParent<Part>();
-                    if (p == null || p.vessel != d.Source)
-                    {
-                        if (p != null) Bda.AddDamage(p, (float)Darts.Damage(d.Damage, Fragile(p), d.Fragile));
-                        FieldManager.Instance?.SmallFlash(hit.point, new Color(1, 0.7f, 0.35f), 2.5f, 0.15f);
-                        b = hit.point; done = true;
-                    }
+                    float step = hit.distance + 0.05f;
+                    from += dir * step; left -= step;
+                    if (p != null && (p.vessel == d.Source || d.Hit.Contains(p))) continue;
+                    if (p == null) { b = hit.point; done = true; FieldManager.Instance?.SmallFlash(hit.point, new Color(1, 0.7f, 0.35f), 2f, 0.12f); break; }
+                    d.Hit.Add(p);
+                    Bda.AddDamage(p, (float)Darts.Damage(d.Damage, Fragile(p), d.Fragile));
+                    if (d.Hit.Count == 1) FieldManager.Instance?.SmallFlash(hit.point, new Color(1, 0.7f, 0.35f), 2f, 0.12f);
+                    d.Damage *= 0.67f;
+                    if (--d.Pens <= 0) { b = hit.point; done = true; }
                 }
                 d.Pos = Visuals.ToFrame(b);
                 d.Trail.Add(b);

@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.7.0
+# Far Future Weaponry 0.7.1
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -38,7 +38,7 @@ FFW's own trackers go for your KSP target (right-click a craft, Set as Target), 
 |---|---|---|
 | **Long Range Nuclear Cruise Missile** | GPS | Flies low to a GPS target up to 100 km away on a nuclear ramjet (works only in air), then 1 megaton. |
 | **Quantum Phase-Shift Missile** | Optical (20 km; fooled by cloaks) | 400 m out it vanishes in a flash of bent, colour-torn space; 1.5 s later it reappears inside the target's hull and goes off there. |
-| **Kessler Swarm Pod** | Radar (lock the target first) | 500 m out it splits into 20 tungsten darts that shred solar panels, radiators, wings and engines. |
+| **Kessler Swarm Pod** | Radar (lock the target first) | 500 m out it splits into 100 hypervelocity darts aimed where the target will be; each goes through up to three parts and shreds solar panels, radiators, wings and engines. |
 | **Telemetry Leech Missile** | CommNet (craft with a CommNet link) | An explosion, then 30 s without antennas and 2000 ElectricCharge drained. |
 | **Chronos Rust-Dart** | Optical | Little damage; time on the craft it hits runs at half speed for 10 s while rust creeps over the whole craft, then speeds back up. |
 | **Kraken Missile** | Consciousness (crewed craft within 5 km) | Next to no blast; every Kerbal aboard the craft it hits dies, as a thin red wave crawls over its hull. |
