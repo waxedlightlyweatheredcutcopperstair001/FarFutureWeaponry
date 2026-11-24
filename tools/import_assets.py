@@ -95,8 +95,6 @@ MANIFEST = [
     ('NKDR', 'parts/Tomohawk Conventional/srbsmoke.png', 'Parts/CruiseMissile/srbsmoke.png', None),
     ('BDA', 'Parts/aim-120/model.mu', 'Parts/PhaseMissile/model.mu', None),
     ('BDA', 'Parts/aim-120/texture.png', 'Parts/PhaseMissile/texture.png', CYAN),
-    ('BDA', 'Parts/aim-120/model.mu', 'Parts/KrakenMissile/model.mu', None),
-    ('BDA', 'Parts/aim-120/texture.png', 'Parts/KrakenMissile/texture.png', RED),
     ('BDA', 'Parts/harm/model.mu', 'Parts/KesslerPod/model.mu', None),
     ('BDA', 'Parts/harm/tex_harm.png', 'Parts/KesslerPod/tex_harm.png', ORANGE),
     ('NKDR', 'parts/AGM 158/model.mu', 'Parts/LeechMissile/model.mu', None),

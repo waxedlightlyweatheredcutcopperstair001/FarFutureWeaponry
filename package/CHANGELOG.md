@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.0
+
+- **Kraken Missile**: its own model, replacing the borrowed placeholder. An enlarged Hellfire (2.2 m, 0.25 m across)
+  in matte black with red bands, red fin tips and a red ring under a clear, faintly red glass nose dome. Inside the
+  dome, a lump of red flesh on a bundle of wires ending in electrodes. It throbs with a slow heartbeat and its veins
+  glow, faster and brighter once launched. **Craft already carrying a Kraken Missile need it re-attached** (its size
+  and attach point changed).
+- Every part's maker is now Bobrigh Weaponry Inc., and every quote in the descriptions is signed by Cave Kerman,
+  director of science.
+
 ## 0.10.6
 
 - **Cloaking Device**: fixed the darkened scene, white-outs and smearing (seen with Deferred and EVE). In flight, KSP

@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.10.6
+# Far Future Weaponry 0.11.0
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -42,7 +42,7 @@ FFW's own trackers go for your KSP target (right-click a craft, Set as Target), 
 | **Kessler Swarm Pod** | Radar (lock the target first) | 500 m out it splits into 100 hypervelocity darts aimed where the target will be; each goes through up to three parts and shreds solar panels, radiators, wings and engines. |
 | **Telemetry Leech Missile** | CommNet (craft with a CommNet link) | An explosion, then 30 s without antennas and 2000 ElectricCharge drained. |
 | **Chronos Rust-Dart** | Optical | Little damage; time on the craft it hits runs at half speed for 10 s while rust creeps over the whole craft, then speeds back up. |
-| **Kraken Missile** | Consciousness (crewed craft within 5 km) | Next to no blast; every Kerbal aboard the craft it hits dies, as a thin red wave crawls over its hull. |
+| **Kraken Missile** | Consciousness (crewed craft within 5 km) | Next to no blast; every Kerbal aboard the craft it hits dies, as a thin red wave crawls over its hull. A lump of living flesh throbs in its glass nose. |
 
 ### Bombs
 
@@ -91,5 +91,5 @@ Without Far Future Technologies (or the Community Resource Pack), this mod defin
 
 ## Licence
 
-Code: MIT. Configs and assets: CC BY-SA 4.0. The Warp Bomb's model is the mod's own; the other, placeholder models come from BDArmory (CC BY-SA 2.0), BDArmory
+Code: MIT. Configs and assets: CC BY-SA 4.0. The Warp Bomb's and Kraken Missile's models are the mod's own; the other, placeholder models come from BDArmory (CC BY-SA 2.0), BDArmory
 Extended (CC BY-SA 4.0) and North Kerbin Dynamics Renewed (CC BY-SA 4.0); see `LICENSE` and `Licences/`.

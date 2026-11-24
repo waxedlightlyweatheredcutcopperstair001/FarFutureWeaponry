@@ -129,6 +129,25 @@ def ksp_material(name, main, nrm=None, emissive=None, spec=0.3, shininess=0.25, 
     return m
 
 
+def glass_material(name, tex, tint, alpha, spec=0.9, shininess=0.9):
+    """KSP/Alpha/Translucent Specular: see-through glass (tint and alpha in _Color), with a Blender preview set-up."""
+    m = bpy.data.materials.new(name)
+    p = m.mumatprop
+    p.shaderName = 'KSP/Alpha/Translucent Specular'
+    for k, v in (('_Color', (tint[0], tint[1], tint[2], alpha)), ('_SpecColor', (spec, spec, spec, 1))):
+        it = p.color.properties.add(); it.name = k; it.value = v
+    it = p.float3.properties.add(); it.name = '_Shininess'; it.value = shininess
+    it = p.texture.properties.add(); it.name = '_MainTex'; it.tex = tex.name + '.png'
+    m.use_nodes = True
+    bsdf = m.node_tree.nodes['Principled BSDF']
+    bsdf.inputs['Base Color'].default_value = (tint[0], tint[1], tint[2], 1)
+    bsdf.inputs['Alpha'].default_value = alpha
+    bsdf.inputs['Roughness'].default_value = 0.05
+    try: m.blend_method = 'BLEND'
+    except (AttributeError, TypeError): pass
+    return m
+
+
 # ---- Objects ----
 
 def mesh_object(name, bm, material, parent):
@@ -209,10 +228,12 @@ def render_previews(folder, views, size=900, samples=48, target=(0, 0, 0)):
     sc.collection.objects.link(cam)
     sc.camera = cam
     os.makedirs(folder, exist_ok=True)
-    for name, pos, before in views:
+    for view in views:
+        name, pos, before = view[:3]
+        aim = view[3] if len(view) > 3 else target
         if before: before()
         cam.location = pos
-        d = Vector(target) - Vector(pos)
+        d = Vector(aim) - Vector(pos)
         cam.rotation_euler = d.to_track_quat('-Z', 'Y').to_euler()
         sc.render.filepath = os.path.join(folder, name)
         bpy.ops.render.render(write_still=True)
