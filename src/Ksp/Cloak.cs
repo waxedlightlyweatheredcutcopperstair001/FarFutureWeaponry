@@ -77,6 +77,7 @@ namespace FarFutureWeaponry
                 switchedAt = Time.time;
                 if (bdaCloak != null) bdaCloak.GetType().GetMethod(active ? "EnableCloak" : "DisableCloak")?.Invoke(bdaCloak, null);
                 Log.Info($"{vessel.vesselName}: cloak {(active ? "on" : "off")}.");
+                reported.Clear();
             }
             if (active) { cloaked.Add(vessel); if (!owners.TryGetValue(vessel, out var o) || o == null) owners[vessel] = this; }
             else if (owners.TryGetValue(vessel, out var o2) && o2 == this) { owners.Remove(vessel); if (!AnyActive()) cloaked.Remove(vessel); }
@@ -157,6 +158,20 @@ namespace FarFutureWeaponry
             }
         }
 
+        // Diagnostics: every renderer the cloak switches off is logged once per activation (path, kind, shader), so a
+        // KSP.log shows whether it hid something belonging to another mod.
+        readonly HashSet<Renderer> reported = new HashSet<Renderer>();
+
+        void Report(Part p, Renderer r, string kind)
+        {
+            if (!reported.Add(r)) return;
+            string path = r.name;
+            for (Transform t = r.transform.parent; t != null && t != p.transform; t = t.parent) path = t.name + "/" + path;
+            var shaders = new List<string>();
+            foreach (Material m in r.sharedMaterials) shaders.Add(m != null && m.shader != null ? m.shader.name : "-");
+            Log.Info($"cloak hides [{kind}] {p.partInfo?.name}: {path} ({r.GetType().Name}, layer {r.gameObject.layer}, {string.Join(", ", shaders)})");
+        }
+
         bool interiors = true;      // hide the parts' interiors (IVAs) too: not while the player is looking from inside
 
         void SetHidden(Dictionary<Part, List<Renderer>> hidden, Part p, bool hide, bool hull, bool rescan)
@@ -172,13 +187,14 @@ namespace FarFutureWeaponry
                     bool fx = !(r is MeshRenderer || r is SkinnedMeshRenderer) || !PartOverlay.IsHull(r);
                     if (fx == hull) continue;
                     r.enabled = false; list.Add(r); allHidden.Add(r);
+                    Report(p, r, fx ? "effect" : "hull");
                 }
                 // The interior (IVA): stock KSP and FreeIva draw it in the flight view, fenced in by the hull and by depth
                 // masks (they write depth, no colour, so it only shows through the windows). With the hull gone the masks
                 // stand in the open and blank out whatever is behind them; with Deferred they also wreck the lighting.
                 if (hull && interiors && p.internalModel != null)
                     foreach (Renderer r in p.internalModel.GetComponentsInChildren<Renderer>())
-                        if (r != null && r.enabled) { r.enabled = false; list.Add(r); allHidden.Add(r); }
+                        if (r != null && r.enabled) { r.enabled = false; list.Add(r); allHidden.Add(r); Report(p, r, "interior"); }
             }
             else if (!hide && isHidden)
             {

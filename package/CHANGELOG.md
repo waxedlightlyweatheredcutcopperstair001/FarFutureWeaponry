@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.5
+
+- Cloaking Device: logs every renderer it hides (in KSP.log, `[FFW] cloak hides ...`), to track down the rendering
+  glitch some installs show while cloaked.
+
 ## 0.10.4
 
 - **Cloaking Device**: fixed the darkened scene, white-outs and vanishing ground seen from most angles. The cloak hid
