@@ -23,6 +23,8 @@ namespace FarFutureWeaponry
 
         PartModule missile;
         bool split;
+        float lastRange = float.MaxValue;
+        [KSPField] public float closestApproachRange = 300;   // (passing closest approach within this: split there)
 
         public override void OnStart(StartState state)
         {
@@ -40,7 +42,11 @@ namespace FarFutureWeaponry
             Vector3 target = Bda.MissileTargetPosition(missile);
             if (target == Vector3.zero) return;
             Vector3 me = part.transform.position;
-            if ((target - me).sqrMagnitude > splitDistance * splitDistance) return;
+            float range = (target - me).magnitude;
+            // Split at the set distance; or, if it's going to pass wide of that, at its closest approach.
+            bool passing = range > lastRange && range < closestApproachRange;
+            lastRange = range;
+            if (range > splitDistance && !passing) return;
             split = true;
             // Where the target will be when the darts arrive (in the missile's own frame: the darts leave it at dartSpeed).
             Vector3 tv = Bda.MissileTargetVelocity(missile), mv = vessel.srf_velocity;
@@ -72,7 +78,8 @@ namespace FarFutureWeaponry
             public Vessel Source;
         }
 
-        const float Life = 6;
+        const float Life = 3;
+        const int MaxTrails = 100;      // (darts are cheap, trails aren't: one object, mesh and draw call each)
         readonly List<Dart> darts = new List<Dart>();
         int mask;
 
@@ -84,6 +91,7 @@ namespace FarFutureWeaponry
             double[] dirs = Darts.Cone(n, spreadDeg);
             Quaternion rot = Quaternion.LookRotation(aim);
             Transform frame = FlightGlobals.currentMainBody != null ? FlightGlobals.currentMainBody.transform : null;
+            int every = Mathf.Max(1, Mathf.CeilToInt(n / (float)MaxTrails));
             for (int i = 0; i < n; i++)
             {
                 Vector3 dir = rot * new Vector3((float)dirs[i * 3], (float)dirs[i * 3 + 1], (float)dirs[i * 3 + 2]);
@@ -93,9 +101,9 @@ namespace FarFutureWeaponry
                     Pos = Visuals.ToFrame(from + dir * 2),
                     Vel = frame != null ? (Vector3d)frame.InverseTransformDirection(v) : (Vector3d)v,
                     Born = Time.time, Damage = damage, Fragile = fragile, Source = source, Pens = Mathf.Max(1, pens),
-                    Trail = RibbonTrail.Create(null, colour, 0.2f, 0.3f, 8)
+                    Trail = i % every == 0 ? RibbonTrail.Create(null, colour, 0.2f, 0.3f, 8) : null
                 };
-                d.Trail.Add(from);
+                d.Trail?.Add(from);
                 darts.Add(d);
             }
             FieldManager.Instance?.SmallFlash(from, colour, 6, 0.25f);
@@ -134,8 +142,8 @@ namespace FarFutureWeaponry
                     if (--d.Pens <= 0) { b = hit.point; done = true; }
                 }
                 d.Pos = Visuals.ToFrame(b);
-                d.Trail.Add(b);
-                if (done) { d.Trail.Detach(); darts.RemoveAt(i); }
+                d.Trail?.Add(b);
+                if (done) { d.Trail?.Detach(); darts.RemoveAt(i); }
             }
         }
 

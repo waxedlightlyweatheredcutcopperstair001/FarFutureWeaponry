@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.2
+
+- **Kessler Swarm Pod**: splits 50 m from its target (was 500 m), so the dart cone is only a few metres wide when it
+  arrives instead of 35 m, and fires 500 darts (was 100). If it's going to pass wider than 50 m, it splits at its
+  closest approach instead of flying on. Only every fifth dart draws a trail, and stray darts vanish after 3 s, so
+  the extra darts cost next to nothing.
+
 ## 0.11.1
 
 - **Kraken Missile**: the glass dome is a darker red and less see-through, so it stands out; the flesh's glow is
