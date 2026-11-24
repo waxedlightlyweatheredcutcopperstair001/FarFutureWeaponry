@@ -80,12 +80,12 @@ def textures(out):
     hgt = np.zeros((N, N), np.float32)
     emi = np.zeros((N, N, 3), np.float32)
     black = np.array([0.05, 0.05, 0.055]); charcoal = np.array([0.13, 0.13, 0.14])
-    bronze = np.array([0.46, 0.34, 0.12])
+    bronze = np.array([0.82, 0.62, 0.26])     # (bright gold foil, as on FFT's tanks)
     purple = np.array([0.75, 0.3, 1.0])
     # Body (rows 0-1023): black, with the tank section's panels and foil.
     def col(y): return int(round((y - Y_TAIL) / L * N))
     body = alb[:1024]; bg = gloss[:1024]; bh = hgt[:1024]
-    body[:] = black; bg[:] = 0.25
+    body[:] = black; bg[:] = 0.18
     for y in (0.75, -0.55):
         c = col(y); bh[:, c - 2:c + 2] = -2; body[:, c - 2:c + 2] *= 0.6
     foil_n = mulib.value_noise(1024, N, 60, SEED + 2)
@@ -94,11 +94,11 @@ def textures(out):
                        (0.12, 0.15, 'foil'), (0.15, 0.27, 'panel'), (0.27, TANK1, 'foil')):
         s = slice(col(a), col(b))
         if kind == 'foil':
-            body[:, s] = bronze * (0.88 + 0.24 * foil_n[:, s])[..., None]
-            bg[:, s] = 0.95; bh[:, s] = (foil_n[:, s] * 1.5 + wrinkle[:, s] * 2.5)      # (crinkles in the normal map)
+            body[:, s] = bronze * (0.82 + 0.3 * foil_n[:, s])[..., None]
+            bg[:, s] = 1.0; bh[:, s] = (foil_n[:, s] * 2.5 + wrinkle[:, s] * 4)      # (crinkles: they catch the light)
         else:
             body[:, s] = charcoal
-            bg[:, s] = 0.45
+            bg[:, s] = 0.3
             e0, e1 = col(a), col(b)
             for c in (e0 + 6, e1 - 8):                      # (a frame line inset round each panel band)
                 bh[:, c:c + 2] = -1.5; body[:, c:c + 2] *= 0.7
@@ -111,7 +111,7 @@ def textures(out):
     for name, c in sw.items():
         k = SWATCH[name]
         alb[1024:, k * w:(k + 1) * w] = c
-        gloss[1024:, k * w:(k + 1) * w] = 0.9 if name == 'foil' else 0.4
+        gloss[1024:, k * w:(k + 1) * w] = 1.0 if name == 'foil' else 0.3
     k = SWATCH['trace']; emi[1024:, k * w:(k + 1) * w] = purple
     k = SWATCH['light']; emi[1024:, k * w:(k + 1) * w] = purple * 0.9
     main = mulib.save_png('AntimatterBomb', np.clip(alb, 0, 1), out, alpha=gloss)
@@ -131,6 +131,7 @@ class B:
     def face(self, verts, uvs, smooth, outward=None):
         f = self.bm.faces.new(verts)
         f.smooth = smooth
+        f.normal_update()       # (a new face has no normal until asked: the outward checks need it)
         for loop, uv in zip(f.loops, uvs): loop[self.uv].uv = uv
         if outward is not None and f.normal.dot(outward) < 0: f.normal_flip()
         return f
@@ -324,7 +325,7 @@ def main():
     out = os.path.abspath(o['out']); os.makedirs(out, exist_ok=True)
     mulib.reset()
     tex, nrm, glow = textures(out)
-    mat = mulib.ksp_material('AntimatterBomb', tex, nrm, glow, spec=0.35, shininess=0.35)
+    mat = mulib.ksp_material('AntimatterBomb', tex, nrm, glow, spec=0.85, shininess=0.45)   # (strength per texel: the alpha)
     b = B()
     profile(b)
     rects = traces()

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.2
+
+- **Antimatter Bomb**: the foil is a brighter gold and much shinier, with crinkles that catch the light; the gaps in
+  the sides of the purple grooves are closed.
+- **Kraken Missile**: some fin edges, plate boxes and wires were inside-out (invisible from one side), the wire and
+  electrode ends were open, and there was a thin gap round the edge of the dome's base plate. All fixed.
+
 ## 0.12.1
 
 Fixes from a code review. **Needs the rebuilt shader bundle.**

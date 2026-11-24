@@ -186,6 +186,7 @@ class Builder:
     def face(self, verts, uvs, smooth):
         f = self.bm.faces.new(verts)
         f.smooth = smooth
+        f.normal_update()       # (a new face has no normal until asked: the outward checks need it)
         for loop, uv in zip(f.loops, uvs):
             loop[self.uv].uv = uv
         return f

@@ -147,6 +147,7 @@ class B:
     def face(self, verts, uvs, smooth):
         f = self.bm.faces.new(verts)
         f.smooth = smooth
+        f.normal_update()       # (a new face has no normal until asked: the outward checks need it)
         for loop, uv in zip(f.loops, uvs): loop[self.uv].uv = uv
         return f
 
@@ -246,7 +247,7 @@ def fins(b):
 def plate(b):
     """The bulkhead inside the dome the wires come from, with a few connector blocks."""
     c = b.v((0, Y_PLATE + 0.004, 0))
-    rim = [b.v(ring_pt(Y_PLATE + 0.004, DOME_R - 0.002, j)[0]) for j in range(SEG)]
+    rim = [b.v(ring_pt(Y_PLATE + 0.004, R, j)[0]) for j in range(SEG)]     # (out under the ring: no gap at the dome's edge)
     for j in range(SEG):
         j2 = (j + 1) % SEG
         b.face([c, rim[j2], rim[j]], [swatch_uv('dark', 0.5, 0.5)] * 3, False)   # (faces forward, at the flesh)
@@ -339,6 +340,12 @@ def tube(b, pts, radius, swatch, sides=6):
                   swatch_uv(swatch, (k + 1) / sides, (i + 1) / n), swatch_uv(swatch, k / sides, (i + 1) / n)]
             f = b.face([rings[i][k], rings[i][k2], rings[i + 1][k2], rings[i + 1][k]], uv, True)
             if (f.calc_center_median() - (pts[i] + pts[i + 1]) / 2).dot(f.normal) < 0: f.normal_flip()
+    # End caps (an open end shows the inside of the tube).
+    for ring, at, out in ((rings[0], pts[0], -tang[0]), (rings[-1], pts[-1], tang[-1])):
+        c = b.v(at)
+        for k in range(sides):
+            f = b.face([c, ring[k], ring[(k + 1) % sides]], [swatch_uv(swatch, 0.5, 0.5)] * 3, False)
+            if f.normal.dot(out) < 0: f.normal_flip()
 
 
 def bezier(p0, p1, p2, p3, n):
