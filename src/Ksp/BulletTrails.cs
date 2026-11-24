@@ -66,6 +66,8 @@ namespace FarFutureWeaponry
             Log.Info($"Projectile trails: {defs.Count} bullet type(s).");
         }
 
+        readonly Dictionary<object, TrailDef> defByInfo = new Dictionary<object, TrailDef>();
+
         void LateUpdate()
         {
             if (defs.Count == 0) return;
@@ -78,7 +80,17 @@ namespace FarFutureWeaponry
                 foreach (object b in bullets)
                 {
                     if (!(b is Component c) || c == null || !c.gameObject.activeInHierarchy) continue;
-                    if (!Bda.ReadBullet(b, out string name, out float alive) || !defs.TryGetValue(name, out TrailDef d)) continue;
+                    // (each bullet type's definition is looked up once by its BulletInfo object: one reflective read per
+                    // bullet per frame, and nothing more for bullets that aren't ours)
+                    object info = Bda.BulletInfoOf(b);
+                    if (info == null) continue;
+                    if (!defByInfo.TryGetValue(info, out TrailDef d))
+                    {
+                        string name = Bda.BulletInfoName(info);
+                        defByInfo[info] = d = name != null && defs.TryGetValue(name, out TrailDef found) ? found : null;
+                    }
+                    if (d == null) continue;
+                    float alive = Bda.BulletTimeAlive(b);
                     if (byBullet.TryGetValue(b, out Trail t) && (t.Def != d || alive < t.LastAlive))
                     {
                         // The pooled bullet was reused for a new shot: the old trail stays where it is and fades.
@@ -151,6 +163,8 @@ namespace FarFutureWeaponry
         }
 
         /// <summary>A camera-facing ribbon through the points, faded by each point's age.</summary>
+        static Vector3[] scratch = new Vector3[64];
+
         void Build(Trail t, Vector3 camPos, float now)
         {
             verts.Clear(); cols.Clear(); uvs.Clear(); tris.Clear();
@@ -158,7 +172,8 @@ namespace FarFutureWeaponry
             int n = pts.Count;
             if (n >= 2)
             {
-                var world = new Vector3[n];
+                if (scratch.Length < n) scratch = new Vector3[Mathf.NextPowerOfTwo(n)];   // (shared, grown: no array per trail per frame)
+                var world = scratch;
                 for (int i = 0; i < n; i++) world[i] = Visuals.FromFrame(new Vector3d(pts[i].X, pts[i].Y, pts[i].Z));
                 float half = t.Def.Width * 0.5f;
                 for (int i = 0; i < n; i++)

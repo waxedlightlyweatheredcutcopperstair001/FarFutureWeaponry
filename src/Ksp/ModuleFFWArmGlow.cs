@@ -19,6 +19,7 @@ namespace FarFutureWeaponry
 
         static readonly int EmissiveId = Shader.PropertyToID("_EmissiveColor");
         readonly List<Material> mats = new List<Material>();
+        readonly List<Material> instances = new List<Material>();     // (every copy r.materials made: all destroyed)
         PartModule missile;
         float firedAt = -1;
         Color colour;
@@ -27,7 +28,7 @@ namespace FarFutureWeaponry
         {
             colour = Core.Rgba.Parse(color, new Core.Rgba(0.35f, 0.65f, 1, 1)).ToColor();
             foreach (Renderer r in part.FindModelComponents<Renderer>())
-                foreach (Material m in r.materials)       // (instances: only this part glows)
+                foreach (Material m in Instanced(r))       // (instances: only this part glows)
                     if (m != null && m.HasProperty(EmissiveId)) { mats.Add(m); }
             SetGlow(idleGlow);
             if (!HighLogic.LoadedSceneIsFlight) return;
@@ -51,6 +52,8 @@ namespace FarFutureWeaponry
             foreach (Material m in mats) if (m != null) m.SetColor(EmissiveId, c);
         }
 
-        void OnDestroy() { foreach (Material m in mats) if (m != null) Destroy(m); }
+        IEnumerable<Material> Instanced(Renderer r) { Material[] ms = r.materials; instances.AddRange(ms); return ms; }
+
+        void OnDestroy() { foreach (Material m in instances) if (m != null) Destroy(m); }
     }
 }

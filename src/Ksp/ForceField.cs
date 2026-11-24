@@ -35,10 +35,14 @@ namespace FarFutureWeaponry
 
         bool up;                    // powered and on
         float upSince;
-        readonly List<PartOverlay> overlays = new List<PartOverlay>();
-        int overlayParts = -1;
-        readonly Vector4[] hits = new Vector4[4];
+        readonly OverlaySet overlays = new OverlaySet();
+        readonly Vector4[] hits = new Vector4[4];           // (world position, age) for the shader
+        readonly Part[] hitPart = new Part[4];               // where each hit landed, on the part (it moves with the craft)
+        readonly Vector3[] hitLocal = new Vector3[4];
         int nextHit;
+
+        /// <summary>Leaving the scene: forget every craft (dead references otherwise pile up).</summary>
+        internal static void ClearAll() { fields.Clear(); pierced.Clear(); }
         Color colour;
 
         static readonly Dictionary<Vessel, ModuleFFWForceField> fields = new Dictionary<Vessel, ModuleFFWForceField>();
@@ -82,14 +86,20 @@ namespace FarFutureWeaponry
             bool mine = !fields.TryGetValue(vessel, out var owner) || owner == this;
             bool show = mine && (up || (Time.time - upSince < 0.6f && overlays.Count > 0));
             if (!show || FfwShaders.Shield == null) { ClearOverlays(); return; }
-            if (overlayParts != vessel.parts.Count) { ClearOverlays(); BuildOverlays(); }
+            if (overlays.Count == 0) for (int i = 0; i < 4; i++) hits[i] = new Vector4(0, 0, 0, -1);
+            overlays.Sync(vessel, FfwShaders.Shield, "FFW force field");
             float t = Time.time - upSince;
             float size = Mathf.Max(5, vessel.vesselSize.magnitude);
             // Coming up: a shimmer sweeping out over the hull, then the steady layer; going down: fading out.
             Vector3 c = vessel.CoM;
             float level = up ? Mathf.Clamp01(t / 0.6f) : 1 - Mathf.Clamp01(t / 0.6f);
-            for (int i = 0; i < 4; i++) if (hits[i].w >= 0) hits[i].w += Time.deltaTime;
-            foreach (PartOverlay o in overlays)
+            for (int i = 0; i < 4; i++)
+            {
+                if (hits[i].w < 0) continue;
+                hits[i].w += Time.deltaTime;
+                if (hitPart[i] != null) { Vector3 w = hitPart[i].transform.TransformPoint(hitLocal[i]); hits[i].x = w.x; hits[i].y = w.y; hits[i].z = w.z; }
+            }
+            foreach (PartOverlay o in overlays.Overlays)
             {
                 o.Block.SetVector(WaveId, new Vector4(c.x, c.y, c.z, up ? size * 0.7f * t / 0.6f : -1));
                 o.Block.SetVector(StateId, new Vector4(level, Time.time, 0, 0));
@@ -99,23 +109,9 @@ namespace FarFutureWeaponry
             }
         }
 
-        void BuildOverlays()
-        {
-            overlayParts = vessel.parts.Count;
-            for (int i = 0; i < 4; i++) hits[i] = new Vector4(0, 0, 0, -1);
-            foreach (Part p in vessel.parts)
-            {
-                if (p == null) continue;
-                var o = new PartOverlay(p, FfwShaders.Shield, "FFW force field");
-                if (o.Empty) o.Destroy(); else overlays.Add(o);
-            }
-        }
-
         void ClearOverlays()
         {
-            foreach (PartOverlay o in overlays) o.Destroy();
             overlays.Clear();
-            overlayParts = -1;
         }
 
         void OnDestroy()
@@ -160,6 +156,7 @@ namespace FarFutureWeaponry
         {
             Vector3 at = p.transform.position;
             hits[nextHit] = new Vector4(at.x, at.y, at.z, 0);
+            hitPart[nextHit] = p; hitLocal[nextHit] = p.transform.InverseTransformPoint(at);
             nextHit = (nextHit + 1) % 4;
             FieldManager.Instance?.SmallFlash(at, colour, 4, 0.2f);
         }

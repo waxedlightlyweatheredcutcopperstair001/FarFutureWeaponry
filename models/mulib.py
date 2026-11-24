@@ -41,8 +41,26 @@ def reset():
 
 # ---- Textures (numpy arrays, row 0 = the bottom of the image, i.e. v = 0) ----
 
-def save_png(name, rgb, folder, alpha=None, data=False):
-    """Write an H x W x 3 float array (0-1) as <folder>/<name>.png and return the Blender image."""
+def shrink(a, k):
+    """Average k x k blocks (a texture k times smaller each way)."""
+    if k <= 1: return a
+    h, w = a.shape[0] // k * k, a.shape[1] // k * k
+    a = a[:h, :w]
+    return a.reshape(h // k, k, w // k, k, *a.shape[2:]).mean(axis=(1, 3))
+
+
+def save_png(name, rgb, folder, alpha=None, data=False, shrink_by=1):
+    """
+    Write an H x W x 3 float array (0-1) as <folder>/<name>.png and return the Blender image; shrink_by > 1 saves it that
+    many times smaller each way (maps with little detail: emissive masks, flat colours). Normal maps are renormalised.
+    """
+    if shrink_by > 1:
+        rgb = shrink(rgb, shrink_by)
+        if alpha is not None: alpha = shrink(alpha, shrink_by)
+        if data:
+            n = rgb * 2 - 1
+            n /= np.maximum(np.linalg.norm(n, axis=2, keepdims=True), 1e-6)
+            rgb = n * 0.5 + 0.5
     h, w, _ = rgb.shape
     img = bpy.data.images.new(name, w, h, alpha=alpha is not None)
     px = np.ones((h, w, 4), np.float32)

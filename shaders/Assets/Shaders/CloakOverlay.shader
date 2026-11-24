@@ -47,7 +47,7 @@ Shader "FarFutureWeaponry/CloakOverlay"
                     if(_CloakState.z>0.5&&x>1.5) discard;     // not reached yet: still visible
                     if(_CloakState.z<-0.5&&x<-1.5) discard;   // already uncloaked
                 }
-                float k=(pow(rim,4)*_CloakState.y+band*0.6)*_CloakState.x;
+                float k=(pow(saturate(rim),4)*_CloakState.y+band*0.6)*_CloakState.x;
                 return float4(max(_Color.rgb*k,0),0);
             }
             ENDCG

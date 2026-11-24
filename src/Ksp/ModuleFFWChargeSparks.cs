@@ -91,6 +91,7 @@ namespace FarFutureWeaponry
             glow.range = lightRange;
             glow.intensity = 0;
             glow.shadows = LightShadows.None;
+            glow.enabled = false;
 
             if (chargeSound)
             {
@@ -137,6 +138,7 @@ namespace FarFutureWeaponry
             float level = charging ? FxCurves.ChargeSparks(Time.time - chargeStart, chargeTime) : 0;
             var emission = sparks.emission;
             emission.rateOverTime = rate * level;
+            glow.enabled = charging && level > 0;     // (an idle light at intensity 0 still costs in culling)
             glow.intensity = charging ? lightIntensity * level * Random.Range(0.4f, 1.2f) : 0;
         }
 

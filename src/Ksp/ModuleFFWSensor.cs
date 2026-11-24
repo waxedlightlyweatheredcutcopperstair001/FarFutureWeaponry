@@ -29,6 +29,7 @@ namespace FarFutureWeaponry
         Quaternion pivotRest;
         Vessel target;
         bool seeing;
+        float nextLook;
 
         static readonly List<ModuleFFWSensor> all = new List<ModuleFFWSensor>();
 
@@ -76,6 +77,8 @@ namespace FarFutureWeaponry
             }
             string name = Core.Tracking.Name(kind);
             if (!powered) { status = name + ": NO POWER"; target = null; seeing = false; return; }
+            if (Time.time < nextLook) return;       // (5 times a second is plenty for the display and the camera head)
+            nextLook = Time.time + 0.2f;
             target = Targets.Choose(vessel);
             seeing = target != null && Targets.CanSee(kind, part.transform.position, target);
             if (target == null) status = name + ": no target";

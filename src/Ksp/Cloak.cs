@@ -43,8 +43,10 @@ namespace FarFutureWeaponry
 
         bool active;            // powered and on
         float switchedAt = -10;
-        readonly List<PartOverlay> overlays = new List<PartOverlay>();
-        int builtFor = -1;
+        readonly OverlaySet overlays = new OverlaySet();
+
+        /// <summary>Leaving the scene: forget every craft and renderer (dead references otherwise pile up).</summary>
+        internal static void ClearAll() { cloaked.Clear(); owners.Clear(); allHidden.Clear(); }
         PartModule bdaCloak;
         Color colour;
         static readonly int WaveId = Shader.PropertyToID("_Wave"), StateId = Shader.PropertyToID("_CloakState"), ColourId = Shader.PropertyToID("_Color");
@@ -79,9 +81,28 @@ namespace FarFutureWeaponry
                 Log.Info($"{vessel.vesselName}: cloak {(active ? "on" : "off")}.");
                 reported.Clear();
             }
+            ReconcileBda();
             if (active) { cloaked.Add(vessel); if (!owners.TryGetValue(vessel, out var o) || o == null) owners[vessel] = this; }
             else if (owners.TryGetValue(vessel, out var o2) && o2 == this) { owners.Remove(vessel); if (!AnyActive()) cloaked.Remove(vessel); }
             status = !cloakOn ? "off" : active ? "cloaked" : "NO POWER";
+        }
+
+        static FieldInfo bdaEnabled, bdaEnabling, bdaDisabling;
+
+        /// <summary>
+        /// BDArmory's cloak ignores a "disable" while it's still switching on (and an "enable" while switching off): once
+        /// it's settled, bring it in line with ours, or a quick on-off leaves its stealth on for free.
+        /// </summary>
+        void ReconcileBda()
+        {
+            if (bdaCloak == null) return;
+            Type t = bdaCloak.GetType();
+            const BindingFlags F = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            if (bdaEnabled == null) { bdaEnabled = t.GetField("cloakEnabled", F); bdaEnabling = t.GetField("enabling", F); bdaDisabling = t.GetField("disabling", F); }
+            if (bdaEnabled == null) return;
+            bool busy = (bdaEnabling != null && (bool)bdaEnabling.GetValue(bdaCloak)) || (bdaDisabling != null && (bool)bdaDisabling.GetValue(bdaCloak));
+            if (busy || (bool)bdaEnabled.GetValue(bdaCloak) == active) return;
+            t.GetMethod(active ? "EnableCloak" : "DisableCloak")?.Invoke(bdaCloak, null);
         }
 
         void LateUpdate()
@@ -109,15 +130,16 @@ namespace FarFutureWeaponry
             float far = 2;
             foreach (Part p in vessel.parts) if (p != null) far = Mathf.Max(far, Vector3.Distance(p.transform.position, c) + 2);
             float wave = rippling ? far * Mathf.Clamp01(t / rippleSeconds) : -1;
-            if (FfwShaders.Cloak == null) { if (active && !rippling) Hide(null, 0); else Show(); ClearOverlays(); return; }
-            if (active) Hide(rippling ? (Vector3?)c : null, wave);
+            if (FfwShaders.Cloak == null) { if (active && !rippling) Hide(null, 0); else Show(); ClearOverlays(); }
+            else if (active) Hide(rippling ? (Vector3?)c : null, wave);
             else if (rippling) HideOutside(c, wave);
             else Show();
             if (Time.time >= nextRescan) nextRescan = Time.time + 0.5f;
+            if (FfwShaders.Cloak == null) return;
             if (!overlay || !outline) { ClearOverlays(); return; }
-            if (builtFor != vessel.parts.Count) { ClearOverlays(); BuildOverlays(); }
+            overlays.Sync(vessel, FfwShaders.Cloak, "FFW cloak", false);
             float sweep = rippling ? (active ? 1 : -1) : 0;
-            foreach (PartOverlay o in overlays)
+            foreach (PartOverlay o in overlays.Overlays)
             {
                 o.Block.SetVector(WaveId, new Vector4(c.x, c.y, c.z, wave));
                 o.Block.SetVector(StateId, new Vector4(1, active && !rippling ? 0.25f : 0.6f, sweep, 0));
@@ -186,6 +208,7 @@ namespace FarFutureWeaponry
                 foreach (Renderer r in p.GetComponentsInChildren<Renderer>())
                 {
                     if (r == null || !r.enabled || r.name.StartsWith("FFW ") || Visuals.OnCamera(r)) continue;
+                    if (r.GetComponentInParent<Part>() != p) continue;      // (a part attached below this one: its own turn)
                     bool fx = !(r is MeshRenderer || r is SkinnedMeshRenderer) || !PartOverlay.IsHull(r);
                     if (fx == hull) continue;
                     r.enabled = false; list.Add(r); allHidden.Add(r);
@@ -215,22 +238,9 @@ namespace FarFutureWeaponry
             }
         }
 
-        void BuildOverlays()
-        {
-            builtFor = vessel.parts.Count;
-            foreach (Part p in vessel.parts)
-            {
-                if (p == null) continue;
-                var o = new PartOverlay(p, FfwShaders.Cloak, "FFW cloak", false);
-                if (o.Empty) o.Destroy(); else overlays.Add(o);
-            }
-        }
-
         void ClearOverlays()
         {
-            foreach (PartOverlay o in overlays) o.Destroy();
             overlays.Clear();
-            if (!active) builtFor = -1;
         }
 
         bool AnyActive()

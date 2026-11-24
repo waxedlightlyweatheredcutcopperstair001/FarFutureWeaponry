@@ -2,7 +2,7 @@ Shader "FarFutureWeaponry/PhaseLens"
 {
     // Far Future Weaponry: the phase-shift missile vanishing and reappearing: a small gravitational lens with strong
     // chromatic aberration (the colours pulled apart, red bent least and blue most, plus a radial colour split), on a
-    // camera-facing quad over a copy of the screen (GrabPass). Outside the radius the copy is unchanged.
+    // camera-facing quad over a copy of the screen (an unnamed GrabPass: taken by whichever camera draws it). Outside the radius the copy is unchanged.
     Properties
     {
         _Lens ("Radius (m), strength, chroma, -", Vector) = (20,1,1,0)
@@ -10,7 +10,7 @@ Shader "FarFutureWeaponry/PhaseLens"
     SubShader
     {
         Tags { "Queue"="Transparent+100" "RenderType"="Transparent" "IgnoreProjector"="True" }
-        GrabPass { "_FfwPhaseGrab" }
+        GrabPass { }      // (unnamed: grabbed per draw, by the camera drawing it; a named grab can come from another camera)
         Pass
         {
             ZWrite Off ZTest Always Cull Off
@@ -19,7 +19,7 @@ Shader "FarFutureWeaponry/PhaseLens"
             #pragma fragment frag
             #pragma target 3.0
             #include "UnityCG.cginc"
-            sampler2D _FfwPhaseGrab;
+            sampler2D _GrabTexture;
             float4 _Lens;
             struct v2f { float4 pos:SV_POSITION; float2 local:TEXCOORD0; float4 grab:TEXCOORD1; float scale:TEXCOORD2; };
             v2f vert(float4 vertex:POSITION)
@@ -50,9 +50,9 @@ Shader "FarFutureWeaponry/PhaseLens"
                 // Chromatic aberration: the channels bent by different amounts, and split radially.
                 float c=_Lens.z*w;
                 float2 split=dir*c*0.08*toUv;
-                float rC=tex2D(_FfwPhaseGrab,uv+base*(1-0.6*c)+split).r;
-                float gC=tex2D(_FfwPhaseGrab,uv+base).g;
-                float bC=tex2D(_FfwPhaseGrab,uv+base*(1+0.6*c)-split).b;
+                float rC=tex2D(_GrabTexture,uv+base*(1-0.6*c)+split).r;
+                float gC=tex2D(_GrabTexture,uv+base).g;
+                float bC=tex2D(_GrabTexture,uv+base*(1+0.6*c)-split).b;
                 return float4(rC,gC,bC,1);
             }
             ENDCG

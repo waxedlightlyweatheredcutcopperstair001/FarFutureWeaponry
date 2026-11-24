@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.12.1
+
+Fixes from a code review. **Needs the rebuilt shader bundle.**
+
+- Saving (F5, autosave, leaving to the Space Center) while a craft was frozen by a tachyon field, slowed by tachyon
+  weapons, or had its antennas blacked out (Telemetry Leech, Signal Scrambler) saved its parts' modules switched off,
+  permanently. They're now saved as they really are.
+- A craft hit by tachyon weapons while already frozen by a Tachyon Bomb (or caught by two overlapping fields) could
+  stay frozen for good. A craft is now held by one effect at a time.
+- Tachyon slowing (Tachyon Gun, Chronos Rust-Dart) no longer locks a craft onto a straight line: it still falls,
+  steers and burns, just slower.
+- Craft frozen while moving fast (or in orbit) no longer drift away from the tachyon field.
+- Cloaking Device: parts vanish one by one with the ripple again (on most craft, the part everything was attached to
+  took the whole craft with it). A quick on-off, or flickering power, no longer leaves BDArmory's heat and radar stealth
+  on for free.
+- Freezes and slows no longer slowly break Waterfall plumes' animation (it compounded with every part).
+- Alcubierre Micro-Hop Drive: BDArmory missiles chasing you now really lose their target (that part never worked).
+- The Kraken and Blue Rinse wave and the force field's hit flashes now follow a moving craft instead of staying behind.
+- Quantum Phase-Shift Missile: its lens no longer risks showing a stale image with Deferred or Scatterer.
+- Faster: force-field, cloak and rust overlays are shared and built incrementally (losing a part no longer rebuilds
+  them all; rusting a big craft no longer hitches); holograms draw a few merged meshes instead of every part mesh;
+  sensors, seekers and projectile trails do far less work per frame.
+- Smaller in memory: the near-black glow maps of the Warp and Antimatter Bombs and the Kraken's body textures are
+  smaller; an unused sound is gone.
+
 ## 0.12.0
 
 - **Antimatter Bomb**: its own model, replacing the borrowed placeholder. An enlarged FAB-250 (2.4 m, 0.6 m across) in

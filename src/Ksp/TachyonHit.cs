@@ -56,6 +56,7 @@ namespace FarFutureWeaponry
                 sl.RustRate = Mathf.Max(sl.RustRate, rustPerSecond);
                 return;
             }
+            if (TimeStop.Held(v)) return;      // (frozen by a tachyon field: that hold comes first)
             var stop = new TimeStop(v, new HashSet<Part>());
             if (stop.Parts == 0) return;
             slowed[v] = new Slowed { Stop = stop, Start = now, HoldEnd = now + seconds, Factor = factor, RustRate = rustPerSecond };
@@ -157,6 +158,18 @@ namespace FarFutureWeaponry
             if (rust > 0.001f) Show();
         }
 
+        bool pending;
+        const int OverlaysPerFrame = 25;
+        static int budgetFrame = -1, budgetUsed;
+
+        static bool TakeBudget()
+        {
+            if (Time.frameCount != budgetFrame) { budgetFrame = Time.frameCount; budgetUsed = 0; }
+            return budgetUsed++ < OverlaysPerFrame;
+        }
+
+        void Update() { if (pending) Show(); }
+
         void Show()
         {
             if (Mathf.Abs(rust - shown) < 0.002f) return;
@@ -166,8 +179,10 @@ namespace FarFutureWeaponry
             {
                 if (overlay == null)
                 {
+                    // (a hit rusts the whole craft: its parts' overlays are built a few dozen a frame, not all at once)
+                    if (!TakeBudget()) { shown = -1; pending = true; return; }
+                    pending = false;
                     overlay = new PartOverlay(part, FfwShaders.Rust, "FFW rust");
-                    Log.Info($"{part.partInfo.title} on {vessel?.vesselName}: rusting ({(overlay.Empty ? "no meshes to draw it on" : "shader")}).");
                     overlay.Block.SetVector(ScaleId, new Vector4(1, 1, 1, 0.4f));
                     overlay.Block.SetFloat(SeedId, (part.persistentId % 997) * 0.37f);
                 }

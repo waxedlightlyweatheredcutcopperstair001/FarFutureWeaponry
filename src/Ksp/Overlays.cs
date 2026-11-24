@@ -49,18 +49,29 @@ namespace FarFutureWeaponry
     internal sealed class PartOverlay
     {
         readonly List<MeshRenderer> renderers = new List<MeshRenderer>();
+        readonly List<MeshRenderer> sources = new List<MeshRenderer>();     // (each overlay renderer's part renderer)
         readonly List<GameObject> objects = new List<GameObject>();
         public readonly MaterialPropertyBlock Block = new MaterialPropertyBlock();
         public readonly Material Material;
         readonly bool follow;
         readonly Part part;
+        public Part Part => part;
+
+        // One material per overlay kind, shared by every part (their parameters go through each one's property block).
+        static readonly Dictionary<string, Material> shared = new Dictionary<string, Material>();
+        static Material Shared(Shader shader, string name)
+        {
+            string key = name + "|" + shader.name;
+            if (!shared.TryGetValue(key, out Material m) || m == null) shared[key] = m = new Material(shader) { name = name };
+            return m;
+        }
 
         /// <param name="followSource">shown only while the part's own renderer is (false for the cloak, which hides them)</param>
         public PartOverlay(Part part, Shader shader, string name, bool followSource = true)
         {
             follow = followSource;
             this.part = part;
-            Material = new Material(shader) { name = name };
+            Material = Shared(shader, name);
             foreach (MeshFilter mf in part.FindModelComponents<MeshFilter>())
             {
                 var src = mf != null ? mf.GetComponent<MeshRenderer>() : null;
@@ -78,6 +89,7 @@ namespace FarFutureWeaponry
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 r.receiveShadows = false;
                 r.enabled = !follow || src.enabled;
+                sources.Add(src);
                 renderers.Add(r);
                 objects.Add(go);
             }
@@ -109,7 +121,7 @@ namespace FarFutureWeaponry
             {
                 MeshRenderer r = renderers[i];
                 if (r == null) continue;
-                var src = r.transform.parent != null ? r.transform.parent.GetComponent<MeshRenderer>() : null;
+                MeshRenderer src = sources[i];
                 r.enabled = !follow || src == null || src.enabled;
                 r.SetPropertyBlock(Block);
             }
@@ -121,8 +133,45 @@ namespace FarFutureWeaponry
             // (KSP caches each part's renderers; ours were in that list. Let it re-gather, or its own code, such as
             // highlighting and part opacity, hits the destroyed ones.)
             if (objects.Count > 0 && part != null) part.ResetModelRenderersCache();
-            objects.Clear(); renderers.Clear();
-            if (Material != null) Object.Destroy(Material);
+            objects.Clear(); renderers.Clear(); sources.Clear();
+        }
+    }
+
+    /// <summary>
+    /// The overlays of one kind over a whole craft, one per part, kept in step with it: parts that come (docking) get one,
+    /// parts that go (shot off, dropped) lose theirs; the others are left as they are.
+    /// </summary>
+    internal sealed class OverlaySet
+    {
+        readonly Dictionary<Part, PartOverlay> byPart = new Dictionary<Part, PartOverlay>();
+        readonly List<PartOverlay> list = new List<PartOverlay>();
+        readonly List<Part> gone = new List<Part>();
+        int count = -1;
+
+        public List<PartOverlay> Overlays => list;
+        public int Count => list.Count;
+
+        public void Sync(Vessel v, Shader shader, string name, bool follow = true)
+        {
+            if (v == null || v.parts.Count == count) return;
+            count = v.parts.Count;
+            gone.Clear();
+            foreach (var kv in byPart) if (kv.Key == null || kv.Key.vessel != v) gone.Add(kv.Key);
+            foreach (Part p in gone) { byPart[p]?.Destroy(); byPart.Remove(p); }
+            foreach (Part p in v.parts)
+            {
+                if (p == null || byPart.ContainsKey(p)) continue;
+                var o = new PartOverlay(p, shader, name, follow);
+                if (o.Empty) { o.Destroy(); byPart[p] = null; } else byPart[p] = o;
+            }
+            list.Clear();
+            foreach (PartOverlay o in byPart.Values) if (o != null) list.Add(o);
+        }
+
+        public void Clear()
+        {
+            foreach (PartOverlay o in byPart.Values) o?.Destroy();
+            byPart.Clear(); list.Clear(); count = -1;
         }
     }
 }

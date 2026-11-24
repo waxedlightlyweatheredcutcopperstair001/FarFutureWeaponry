@@ -81,8 +81,8 @@ Shader "FarFutureWeaponry/Hologram"
                 c=lerp(c,lum*_Color.rgb*1.3+_Color.rgb*0.08,0.3);
                 float scan=0.88+0.12*sin(i.w.y*6-_Time.y*8);
                 float flicker=0.9+0.1*sin(_Time.y*37+_HoloState.y)*sin(_Time.y*13);
-                c=c*scan+_Color.rgb*pow(rim,3)*0.6;
-                float a=saturate(_Opacity+0.3*pow(rim,3))*flicker*_HoloState.x;
+                c=c*scan+_Color.rgb*pow(saturate(rim),3)*0.6;
+                float a=saturate(_Opacity+0.3*pow(saturate(rim),3))*flicker*_HoloState.x;
                 return float4(saturate(c),saturate(a));
             }
             ENDCG

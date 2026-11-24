@@ -81,8 +81,8 @@ def body_texture(out):
     for k, c in enumerate(cols):
         sw[:, k * w:(k + 1) * w] = c
     alb = np.clip(alb, 0, 1)
-    main = mulib.save_png('Kraken', alb, out)
-    nrm = mulib.save_png('Kraken_NRM', mulib.normal_map(hgt, 0.4), out, data=True)
+    main = mulib.save_png('Kraken', alb, out, shrink_by=2)          # (flat colours: half size is plenty)
+    nrm = mulib.save_png('Kraken_NRM', mulib.normal_map(hgt, 0.4), out, data=True, shrink_by=2)
     return main, nrm
 
 

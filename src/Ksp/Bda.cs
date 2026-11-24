@@ -258,17 +258,48 @@ namespace FarFutureWeaponry
         }
 
         /// <summary>The target the craft's weapon manager is engaging (guard mode), or null.</summary>
+        // Per craft: its weapon managers and cloaking devices, found once and again when its parts change (sensors and
+        // seekers ask every physics step; walking every part's modules each time scaled with craft size).
+        sealed class Modules { public int Parts = -1; public readonly List<PartModule> Wm = new List<PartModule>(), Cloaks = new List<PartModule>(); }
+        static readonly Dictionary<Vessel, Modules> modulesOf = new Dictionary<Vessel, Modules>();
+        static readonly Dictionary<Type, PropertyInfo> vesselProp = new Dictionary<Type, PropertyInfo>();
+
+        static Modules Of(Vessel v)
+        {
+            if (!modulesOf.TryGetValue(v, out Modules m)) modulesOf[v] = m = new Modules();
+            if (m.Parts == v.parts.Count) return m;
+            m.Parts = v.parts.Count; m.Wm.Clear(); m.Cloaks.Clear();
+            foreach (Part p in v.parts)
+                if (p != null)
+                    foreach (PartModule pm in p.Modules)
+                    {
+                        if (wmType != null && wmType.IsInstanceOfType(pm)) m.Wm.Add(pm);
+                        if (cloakType != null && cloakType.IsInstanceOfType(pm)) m.Cloaks.Add(pm);
+                    }
+            return m;
+        }
+
+        /// <summary>Leaving the scene: forget the craft.</summary>
+        public static void ClearCaches() => modulesOf.Clear();
+
+        /// <summary>A BDArmory TargetInfo's craft (its Vessel property, looked up once per type).</summary>
+        public static Vessel InfoVessel(object info)
+        {
+            if (info == null || (info is UnityEngine.Object o && o == null)) return null;
+            Type t = info.GetType();
+            if (!vesselProp.TryGetValue(t, out PropertyInfo pi)) vesselProp[t] = pi = t.GetProperty("Vessel");
+            return pi?.GetValue(info, null) as Vessel;
+        }
+
         public static Vessel GuardTarget(Vessel v)
         {
             if (v == null || wmType == null || wmCurrentTarget == null) return null;
-            foreach (Part p in v.parts)
-                foreach (PartModule m in p.Modules)
-                {
-                    if (!wmType.IsInstanceOfType(m)) continue;
-                    object info = wmCurrentTarget.GetValue(m);
-                    if (info == null || (info is UnityEngine.Object o && o == null)) continue;
-                    if (info.GetType().GetProperty("Vessel")?.GetValue(info, null) is Vessel t && t != null) return t;
-                }
+            foreach (PartModule m in Of(v).Wm)
+            {
+                if (m == null) continue;
+                Vessel t = InfoVessel(wmCurrentTarget.GetValue(m));
+                if (t != null) return t;
+            }
             return null;
         }
 
@@ -276,10 +307,9 @@ namespace FarFutureWeaponry
         public static bool Cloaked(Vessel v)
         {
             if (v == null || cloakType == null || cloakEnabled == null) return false;
-            foreach (Part p in v.parts)
-                foreach (PartModule m in p.Modules)
-                    if (cloakType.IsInstanceOfType(m) && (bool)cloakEnabled.GetValue(m) && (cloakOptical == null || (bool)cloakOptical.GetValue(m)))
-                        return true;
+            foreach (PartModule m in Of(v).Cloaks)
+                if (m != null && (bool)cloakEnabled.GetValue(m) && (cloakOptical == null || (bool)cloakOptical.GetValue(m)))
+                    return true;
             return false;
         }
 
@@ -297,6 +327,11 @@ namespace FarFutureWeaponry
         }
 
         /// <summary>The bullet type's name (the BULLET node's name) and how long it has flown.</summary>
+        /// <summary>A bullet's BulletInfo (its type's definition, shared by every bullet of that type), or null.</summary>
+        public static object BulletInfoOf(object pooledBullet) => pooledBullet == null ? null : bulletInfoField.GetValue(pooledBullet);
+        public static string BulletInfoName(object info) => info == null ? null : bulletInfoName.GetValue(info, null) as string;
+        public static float BulletTimeAlive(object pooledBullet) => (float)bulletTimeAlive.GetValue(pooledBullet);
+
         public static bool ReadBullet(object pooledBullet, out string name, out float timeAlive)
         {
             name = null; timeAlive = 0;

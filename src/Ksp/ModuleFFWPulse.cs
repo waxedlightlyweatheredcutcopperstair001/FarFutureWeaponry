@@ -21,6 +21,7 @@ namespace FarFutureWeaponry
         Transform beating;
         Vector3 baseScale;
         readonly List<Material> mats = new List<Material>();
+        readonly List<Material> instances = new List<Material>();     // (every copy r.materials made: all destroyed)
         PartModule missile;
         Color colour;
         float offset;
@@ -32,7 +33,7 @@ namespace FarFutureWeaponry
             if (beating == null) { Log.Warn($"{part.partInfo?.title}: ModuleFFWPulse: no transform {transformName}."); return; }
             baseScale = beating.localScale;
             foreach (Renderer r in beating.GetComponentsInChildren<Renderer>())
-                foreach (Material m in r.materials)
+                foreach (Material m in Instanced(r))
                     if (m != null && m.HasProperty(EmissiveId)) mats.Add(m);
             offset = Random.value * period;     // (not every missile on the rail in step)
             if (HighLogic.LoadedSceneIsFlight) { Bda.Init(); missile = Bda.FindMissile(part); }
@@ -57,6 +58,8 @@ namespace FarFutureWeaponry
             foreach (Material m in mats) if (m != null) m.SetColor(EmissiveId, c);
         }
 
-        void OnDestroy() { foreach (Material m in mats) if (m != null) Destroy(m); }
+        IEnumerable<Material> Instanced(Renderer r) { Material[] ms = r.materials; instances.AddRange(ms); return ms; }
+
+        void OnDestroy() { foreach (Material m in instances) if (m != null) Destroy(m); }
     }
 }

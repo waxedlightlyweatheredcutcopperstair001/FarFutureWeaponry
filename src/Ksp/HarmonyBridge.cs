@@ -44,15 +44,19 @@ namespace FarFutureWeaponry
         }
 
         /// <summary>Put a static prefix (in this assembly) on a method; false if it couldn't.</summary>
-        public static bool Prefix(MethodBase original, MethodInfo prefix)
+        public static bool Prefix(MethodBase original, MethodInfo prefix) => Patch(original, prefix, null);
+
+        /// <summary>Put a static prefix and/or postfix (in this assembly) on a method; false if it couldn't.</summary>
+        public static bool Patch(MethodBase original, MethodInfo prefix, MethodInfo postfix)
         {
             Init();
-            if (!Present || original == null || prefix == null) return false;
+            if (!Present || original == null || (prefix == null && postfix == null)) return false;
             try
             {
                 var args = new object[patch.GetParameters().Length];
                 args[0] = original;
-                args[1] = Activator.CreateInstance(methodType, prefix);
+                if (prefix != null) args[1] = Activator.CreateInstance(methodType, prefix);
+                if (postfix != null && args.Length > 2) args[2] = Activator.CreateInstance(methodType, postfix);
                 patch.Invoke(harmony, args);
                 Log.Info($"Patched {original.DeclaringType?.Name}.{original.Name}.");
                 return true;

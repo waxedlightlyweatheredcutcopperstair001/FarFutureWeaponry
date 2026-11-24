@@ -160,7 +160,7 @@ def make_textures(out, panels):
     rgb = alb[..., None] * tint
     main = mulib.save_png('WarpBomb', rgb, out)
     nrm = mulib.save_png('WarpBomb_NRM', mulib.normal_map(hgt, 0.35), out, data=True)
-    glow = mulib.save_png('WarpBomb_Emissive', np.dstack([emi * 0.55, emi * 0.8, emi]), out)
+    glow = mulib.save_png('WarpBomb_Emissive', np.dstack([emi * 0.55, emi * 0.8, emi]), out, shrink_by=4)   # (nearly all black)
     return main, nrm, glow
 
 # ---------------------------------------------------------------- geometry

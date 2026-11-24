@@ -113,6 +113,8 @@ namespace FarFutureWeaponry
         sealed class Wave
         {
             public Vector3d Where; public float Start, Seconds, Radius; public Color Colour;
+            public Transform Anchor; public Vector3 Local;      // (the origin rides on the craft: it moves on meanwhile)
+            public Vector3 Origin => Anchor != null ? Anchor.TransformPoint(Local) : Visuals.FromFrame(Where);
             public List<PartOverlay> Overlays;   // with the plugin's shaders: the wave drawn over the craft's own parts
         }
         static readonly int WaveId = Shader.PropertyToID("_Wave"), WaveShapeId = Shader.PropertyToID("_WaveShape"), WaveColourId = Shader.PropertyToID("_Color");
@@ -337,6 +339,7 @@ namespace FarFutureWeaponry
                 float far = 0;
                 foreach (Part p in v.parts) if (p != null) far = Mathf.Max(far, Vector3.Distance(p.transform.position, at) + 3);
                 w.Where = Visuals.ToFrame(at); w.Radius = far; w.Seconds = Mathf.Clamp(far / 12, 0.8f, 2.5f);
+                if (v.rootPart != null) { w.Anchor = v.rootPart.transform; w.Local = w.Anchor.InverseTransformPoint(at); }
                 w.Overlays = new List<PartOverlay>();
                 foreach (Part p in v.parts) if (p != null) { var o = new PartOverlay(p, FfwShaders.Wave, "FFW contour wave"); if (!o.Empty) w.Overlays.Add(o); else o.Destroy(); }
             }
@@ -344,6 +347,7 @@ namespace FarFutureWeaponry
             {
                 float size = Mathf.Max(10, v.vesselSize.magnitude);
                 w.Where = Visuals.ToFrame(v.CoM); w.Seconds = 0.9f; w.Radius = size * 1.2f;
+                if (v.rootPart != null) { w.Anchor = v.rootPart.transform; w.Local = w.Anchor.InverseTransformPoint(v.CoM); }
             }
             waves.Add(w);
         }
@@ -427,6 +431,8 @@ namespace FarFutureWeaponry
         static readonly float[] RingOffsets = { -1, -0.2f, 0, 0.2f, 1 };        // across the band (x its half-width)
         static readonly float[] RingGlow = { 0, 0.6f, 1, 0.6f, 0 };
 
+        static Vector3[] ringV; static Color[] ringC; static int[] ringT;     // (shared buffers; the triangles built once)
+
         static void DrawRing(Field f, Vector3 centre, float radius, float alpha)
         {
             if (f.RingMesh == null) return;
@@ -438,9 +444,19 @@ namespace FarFutureWeaponry
             f.RingT.rotation = Quaternion.FromToRotation(Vector3.up, up);
             float half = Mathf.Max(4, f.RingThickness * 1.2f);
             int rows = RingOffsets.Length;
-            var v = new Vector3[(RingSegments + 1) * rows];
-            var c = new Color[v.Length];
-            var t = new int[RingSegments * (rows - 1) * 6];
+            if (ringV == null)
+            {
+                ringV = new Vector3[(RingSegments + 1) * rows]; ringC = new Color[ringV.Length]; ringT = new int[RingSegments * (rows - 1) * 6];
+                int m = 0;
+                for (int i = 0; i < RingSegments; i++)
+                    for (int k = 0; k < rows - 1; k++)
+                    {
+                        int a0 = i * rows + k, b0 = (i + 1) * rows + k;
+                        ringT[m++] = a0; ringT[m++] = b0; ringT[m++] = a0 + 1;
+                        ringT[m++] = a0 + 1; ringT[m++] = b0; ringT[m++] = b0 + 1;
+                    }
+            }
+            var v = ringV; var c = ringC; var t = ringT;
             Color col = new Color(0.35f, 0.7f, 1f);
             for (int i = 0; i <= RingSegments; i++)
             {
@@ -455,16 +471,9 @@ namespace FarFutureWeaponry
                     c[i * rows + k] = new Color(cc.r * g, cc.g * g, cc.b * g, g);
                 }
             }
-            int n = 0;
-            for (int i = 0; i < RingSegments; i++)
-                for (int k = 0; k < rows - 1; k++)
-                {
-                    int a0 = i * rows + k, b0 = (i + 1) * rows + k;
-                    t[n++] = a0; t[n++] = b0; t[n++] = a0 + 1;
-                    t[n++] = a0 + 1; t[n++] = b0; t[n++] = b0 + 1;
-                }
-            f.RingMesh.Clear();
-            f.RingMesh.vertices = v; f.RingMesh.colors = c; f.RingMesh.triangles = t;
+            // (the triangles never change: set them once; only the vertices and colours move)
+            if (f.RingMesh.vertexCount != v.Length) { f.RingMesh.Clear(); f.RingMesh.vertices = v; f.RingMesh.colors = c; f.RingMesh.triangles = t; }
+            else { f.RingMesh.vertices = v; f.RingMesh.colors = c; }
             f.RingMesh.RecalculateBounds();
         }
 
@@ -644,9 +653,12 @@ namespace FarFutureWeaponry
         }
 
         /// <summary>The Blue Rinse reaching a craft: every Kerbal aboard dies, and a blue wave passes over its hull.</summary>
+        readonly List<Vessel> scratchVessels = new List<Vessel>();
+
         void Rinse(Field f, Vector3 centre, float radius)
         {
-            foreach (Vessel v in FlightGlobals.VesselsLoaded)
+            scratchVessels.Clear(); scratchVessels.AddRange(FlightGlobals.VesselsLoaded);   // (a kerbal killed on EVA leaves the list)
+            foreach (Vessel v in scratchVessels)
             {
                 if (v == null || f.Rinsed.Contains(v) || ClosestPart(v, centre) > radius) continue;
                 f.Rinsed.Add(v);
@@ -698,6 +710,7 @@ namespace FarFutureWeaponry
             Vector3 d = v.CoM - centre;
             if (!Fields.Inside(f.Spec.Radius, d.x, d.y, d.z) || ModuleFFWTachyonShield.Protects(v)) return;
             TachyonHit.Cancel(v);   // (a tachyon-slowed craft: the field takes over)
+            if (TimeStop.Held(v)) return;   // (held by another tachyon field already)
             f.CaughtVessels.Add(v);
             var ts = new TimeStop(v, f.CaughtParts);
             if (ts.Parts == 0) return;
@@ -840,7 +853,7 @@ namespace FarFutureWeaponry
                 {
                     // (the band runs past the far end, then its trail fades)
                     float fade = x <= 1 ? 1 : 1 - (x - 1) / 0.25f;
-                    Vector3 o0 = Visuals.FromFrame(w.Where);
+                    Vector3 o0 = w.Origin;
                     foreach (PartOverlay o in w.Overlays)
                     {
                         o.Block.SetVector(WaveId, new Vector4(o0.x, o0.y, o0.z, w.Radius * Mathf.Min(x, 1.1f)));
@@ -851,7 +864,7 @@ namespace FarFutureWeaponry
                     continue;
                 }
                 // (fallback without the plugin's shaders) a shell of red light sweeping out over the craft.
-                Vfxr.TintSphere(Visuals.FromFrame(w.Where), Mathf.Max(0.5f, w.Radius * x), new Color(1, 0.35f, 0.3f), 0.35f * (1 - x), w.Colour, 3 * (1 - x * x));
+                Vfxr.TintSphere(w.Origin, Mathf.Max(0.5f, w.Radius * x), new Color(1, 0.35f, 0.3f), 0.35f * (1 - x), w.Colour, 3 * (1 - x * x));
             }
             for (int i = arcs.Count - 1; i >= 0; i--)
             {
@@ -961,6 +974,10 @@ namespace FarFutureWeaponry
             arcs.Clear(); ripples.Clear(); waves.Clear();
             Targets.Clear();
             TachyonHit.Clear();
+            TimeStop.ClearAll();
+            Bda.ClearCaches();
+            ModuleFFWForceField.ClearAll();
+            ModuleFFWCloak.ClearAll();
             if (Instance == this) Instance = null;
         }
     }

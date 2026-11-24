@@ -25,6 +25,7 @@ namespace FarFutureWeaponry
             HarmonyBridge.Init();
             ModuleFFWForceField.InstallPatches();
             ModuleFFWCloak.InstallPatch();
+            TimeStop.InstallSavePatch();
             var missing = new List<string>();
             foreach (var (assembly, name, why) in Required)
             {

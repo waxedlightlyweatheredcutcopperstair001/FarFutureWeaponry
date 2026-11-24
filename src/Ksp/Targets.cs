@@ -74,6 +74,7 @@ namespace FarFutureWeaponry
                     if (m is ModuleDataTransmitter t)
                     {
                         silenced.Add((t, t.enabled, t.isEnabled, v));
+                        TimeStop.Suppressed[t] = t.isEnabled;     // (saved as it was, not switched off)
                         t.isEnabled = false; t.enabled = false;
                     }
             Log.Info($"{v.vesselName}: antennas blacked out for {seconds:0} s.");
@@ -98,6 +99,7 @@ namespace FarFutureWeaponry
                 if (m == null) { silenced.RemoveAt(i); continue; }
                 if (BlackedOut(v)) continue;
                 m.enabled = en; m.isEnabled = isEn;
+                TimeStop.Suppressed.Remove(m);
                 silenced.RemoveAt(i);
             }
         }
@@ -157,7 +159,7 @@ namespace FarFutureWeaponry
             Type radar = Bda.FindType("BDArmory.Radar.ModuleRadar");
             FieldInfo locks = radar?.GetField("lockedTargets", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
             Type missile = Bda.FindType("BDArmory.Weapons.Missiles.MissileBase");
-            FieldInfo targetVessel = missile?.GetField("targetVessel", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            PropertyInfo targetVessel = missile?.GetProperty("targetVessel", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);   // (a property in both BDArmorys)
             int radars = 0, missiles = 0;
             foreach (Vessel other in FlightGlobals.VesselsLoaded)
             {
@@ -175,8 +177,9 @@ namespace FarFutureWeaponry
                         if (missile != null && missile.IsInstanceOfType(m) && Bda.MissileFired(m) && targetVessel != null)
                         {
                             object ti = targetVessel.GetValue(m);
-                            if (ti is Component c && c != null && ti.GetType().GetProperty("Vessel")?.GetValue(ti, null) is Vessel mv && mv == v)
+                            if (ti is Component c && c != null && Bda.InfoVessel(ti) is Vessel mv && mv == v)
                             {
+                                if (targetVessel.CanWrite) targetVessel.SetValue(m, null, null);     // (drop the target itself)
                                 Bda.SteerMissile(m, Bda.MissileTargetPosition(m), Vector3.zero, false);
                                 missiles++;
                             }
@@ -201,7 +204,7 @@ namespace FarFutureWeaponry
             foreach (var kv in noControl) if (kv.Key != null) kv.Key.OnFlyByWire -= kv.Value.cb;
             noControl.Clear();
             hiddenUntil.Clear(); lockBroken.Clear(); holograms.Clear();
-            foreach (var (m, en, isEn, _) in silenced) if (m != null) { m.enabled = en; m.isEnabled = isEn; }
+            foreach (var (m, en, isEn, _) in silenced) if (m != null) { m.enabled = en; m.isEnabled = isEn; TimeStop.Suppressed.Remove(m); }
             silenced.Clear();
             blackoutUntil.Clear();
         }

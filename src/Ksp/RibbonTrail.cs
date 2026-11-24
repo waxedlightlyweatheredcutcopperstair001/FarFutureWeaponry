@@ -65,6 +65,8 @@ namespace FarFutureWeaponry
             }
         }
 
+        static Vector3[] scratch = new Vector3[64];
+
         void Build(Vector3 camPos, float now)
         {
             verts.Clear(); cols.Clear(); uvs.Clear(); tris.Clear();
@@ -72,7 +74,8 @@ namespace FarFutureWeaponry
             int n = pts.Count;
             if (n >= 2)
             {
-                var world = new Vector3[n];
+                if (scratch.Length < n) scratch = new Vector3[Mathf.NextPowerOfTwo(n)];   // (shared, grown: no array per trail per frame)
+                var world = scratch;
                 for (int i = 0; i < n; i++) world[i] = Visuals.FromFrame(new Vector3d(pts[i].X, pts[i].Y, pts[i].Z));
                 float half = Width * 0.5f;
                 for (int i = 0; i < n; i++)

@@ -120,6 +120,7 @@ namespace FarFutureWeaponry
         {
             if (instance == null) { var go = new GameObject("FFW screen glitch"); DontDestroyOnLoad(go); instance = go.AddComponent<ScreenGlitch>(); }
             instance.until = Time.realtimeSinceStartup + seconds; instance.length = seconds; instance.strength = strength;
+            instance.enabled = true;
             if (ui && !instance.ui) instance.Grab();
             instance.ui |= ui;
         }
@@ -145,9 +146,9 @@ namespace FarFutureWeaponry
 
         void LateUpdate()
         {
-            if (!ui) return;
             float left = until - Time.realtimeSinceStartup;
-            if (left <= 0) { Restore(); return; }
+            if (left <= 0) { if (ui) Restore(); enabled = false; return; }     // (asleep until the next glitch: no OnGUI each frame)
+            if (!ui) return;
             float k = strength * Mathf.Clamp01(left / length * 1.5f);
             foreach (Panel p in panels)
             {

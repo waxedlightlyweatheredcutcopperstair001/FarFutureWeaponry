@@ -84,38 +84,69 @@ namespace FarFutureWeaponry
             float d = Mathf.Max(10, vessel.vesselSize.magnitude) * 1.3f + 15;
             offsets = new[] { Vector3.right * d, Vector3.left * d, Vector3.up * d, Vector3.down * d, Vector3.forward * d, Vector3.back * d };
             Transform root = vessel.rootPart.transform;
+            // The craft's meshes merged once, one mesh per hologram material (in the root part's space), shared by the six
+            // copies: a handful of draw calls per copy instead of one per part mesh. Meshes Unity can't read (rare) are
+            // copied piece by piece instead.
+            var groups = new Dictionary<Material, List<CombineInstance>>();
+            var loose = new List<(Mesh mesh, Matrix4x4 local, Material[] mats)>();
+            Matrix4x4 toRoot = root.worldToLocalMatrix;
+            foreach (Part p in vessel.parts)
+            {
+                if (p == null) continue;
+                foreach (MeshFilter mf in p.FindModelComponents<MeshFilter>())
+                {
+                    var src = mf.GetComponent<MeshRenderer>();
+                    // (what a cloak has hidden counts as shown: the holograms still look like the craft)
+                    if (src == null || mf.sharedMesh == null || mf.name.StartsWith("FFW ") || !PartOverlay.IsHull(src)) continue;   // (no plumes)
+                    if (!(src.enabled && src.gameObject.activeInHierarchy) && !ModuleFFWCloak.HiddenByCloak(src)) continue;
+                    Mesh mesh = mf.sharedMesh;
+                    Material[] from = src.sharedMaterials;
+                    int subs = Mathf.Max(1, mesh.subMeshCount);
+                    Matrix4x4 local = toRoot * mf.transform.localToWorldMatrix;
+                    var to = new Material[subs];
+                    for (int k = 0; k < subs; k++) to[k] = HoloMaterial(from.Length > 0 ? from[Mathf.Min(k, from.Length - 1)] : null, tint);
+                    if (!mesh.isReadable) { loose.Add((mesh, local, to)); continue; }
+                    for (int k = 0; k < subs; k++)
+                    {
+                        if (!groups.TryGetValue(to[k], out var list)) groups[to[k]] = list = new List<CombineInstance>();
+                        list.Add(new CombineInstance { mesh = mesh, subMeshIndex = Mathf.Min(k, mesh.subMeshCount - 1), transform = local });
+                    }
+                }
+            }
+            var merged = new List<(Mesh, Material)>();
+            foreach (var kv in groups)
+            {
+                var m = new Mesh { name = "FFW hologram", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+                m.CombineMeshes(kv.Value.ToArray(), true, true);
+                combined.Add(m);
+                merged.Add((m, kv.Key));
+            }
             for (int i = 0; i < 6; i++)
             {
                 var holo = new GameObject("FFW hologram " + i);
                 holo.transform.SetPositionAndRotation(root.position, root.rotation);
-                foreach (Part p in vessel.parts)
-                {
-                    if (p == null) continue;
-                    foreach (MeshFilter mf in p.FindModelComponents<MeshFilter>())
-                    {
-                        var src = mf.GetComponent<MeshRenderer>();
-                        // (what a cloak has hidden counts as shown: the holograms still look like the craft)
-                        if (src == null || mf.sharedMesh == null || mf.name.StartsWith("FFW ") || !PartOverlay.IsHull(src)) continue;   // (no plumes)
-                        if (!(src.enabled && src.gameObject.activeInHierarchy) && !ModuleFFWCloak.HiddenByCloak(src)) continue;
-                        var go = new GameObject("FFW hologram piece");
-                        go.transform.SetParent(holo.transform, false);
-                        go.transform.position = mf.transform.position;
-                        go.transform.rotation = mf.transform.rotation;
-                        go.transform.localScale = mf.transform.lossyScale;
-                        go.AddComponent<MeshFilter>().sharedMesh = mf.sharedMesh;
-                        var r = go.AddComponent<MeshRenderer>();
-                        Material[] from = src.sharedMaterials;
-                        var to = new Material[Mathf.Max(1, mf.sharedMesh.subMeshCount)];
-                        for (int k = 0; k < to.Length; k++) to[k] = HoloMaterial(from.Length > 0 ? from[Mathf.Min(k, from.Length - 1)] : null, tint);
-                        r.sharedMaterials = to;
-                        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
-                    }
-                }
+                foreach (var (mesh, mat) in merged) Piece(holo.transform, mesh, Matrix4x4.identity, new[] { mat });
+                foreach (var (mesh, local, ms) in loose) Piece(holo.transform, mesh, local, ms);
                 copies.Add(holo);
             }
             Targets.SetHolograms(vessel, Where);
             ScreenGlitch.Play(0.35f, 0.4f);
             Log.Info($"{vessel.vesselName}: holograms projected ({seconds:0} s).");
+        }
+
+        readonly List<Mesh> combined = new List<Mesh>();
+
+        static void Piece(Transform parent, Mesh mesh, Matrix4x4 local, Material[] mats)
+        {
+            var go = new GameObject("FFW hologram piece");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = local.GetColumn(3);
+            go.transform.localRotation = local.rotation;
+            go.transform.localScale = local.lossyScale;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterials = mats;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
         }
 
         /// <summary>Pay a lump of ElectricCharge, if the craft has it (always, with the infinite electricity cheat on).</summary>
@@ -174,6 +205,8 @@ namespace FarFutureWeaponry
             copies.Clear();
             foreach (Material m in mats.Values) if (m != null) Destroy(m);
             mats.Clear();
+            foreach (Mesh m in combined) if (m != null) Destroy(m);
+            combined.Clear();
         }
 
         void OnDestroy() { if (running) Stop(); }

@@ -165,7 +165,6 @@ MANIFEST = [
     ('BDA', 'Models/laser/laserTex.png', 'FX/LaserCone/laserTex.png', None),
     ('BDA', 'Sounds/explode1.ogg', 'Sounds/explode1.ogg', None),
     ('BDA', 'Sounds/subExplode.ogg', 'Sounds/subExplode.ogg', None),
-    ('BDA', 'Parts/50CalTurret/sounds/turretOverheat.ogg', 'Sounds/turretOverheat.ogg', None),
     # Licences of everything borrowed.
     ('BDA', 'License.txt', 'Licences/BDArmory-License.txt', None),
     ('BDA', 'Credits.txt', 'Licences/BDArmory-Credits.txt', None),

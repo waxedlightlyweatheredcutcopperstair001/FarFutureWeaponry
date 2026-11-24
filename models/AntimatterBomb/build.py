@@ -116,7 +116,7 @@ def textures(out):
     k = SWATCH['light']; emi[1024:, k * w:(k + 1) * w] = purple * 0.9
     main = mulib.save_png('AntimatterBomb', np.clip(alb, 0, 1), out, alpha=gloss)
     nrm = mulib.save_png('AntimatterBomb_NRM', mulib.normal_map(hgt, 0.35), out, data=True)
-    glow = mulib.save_png('AntimatterBomb_Emissive', np.clip(emi, 0, 1), out)
+    glow = mulib.save_png('AntimatterBomb_Emissive', np.clip(emi, 0, 1), out, shrink_by=4)   # (nearly all black)
     return main, nrm, glow
 
 # ---------------------------------------------------------------- geometry

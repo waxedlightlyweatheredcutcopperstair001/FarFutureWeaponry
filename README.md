@@ -73,6 +73,11 @@ Windows: `py tools\make.py --deploy`. Single steps: `python3 tools/build.py`;
   `Part.SetOpacity` fade is undone (`SetOpacity(1)`) for 3 s after each switch.
 - **Interface glitch**: `ScreenGlitch` jolts the direct children of `UIMasterController.mainCanvas`/`appCanvas`
   (position, scale, alpha via an added `CanvasGroup`) and puts them back afterwards.
+- **Saving while modules are switched off**: a freeze or antenna blackout sets `PartModule.isEnabled` false, and KSP
+  saves isEnabled. `TimeStop.Suppressed` records the module's own value; a Harmony prefix/postfix on `PartModule.Save`
+  writes that instead. One `TimeStop` per craft at a time (`TimeStop.Held`).
+- **Part hierarchies nest**: a part's children include the parts attached below it (and, on the root, the flight
+  camera). Code walking a part's children keeps only components whose `GetComponentInParent<Part>()` is that part.
 - **Antimatter** uses Far Future Technologies' units (36 GJ/unit) and the same containment model (a flat EC/s cost;
   without it, annihilation heats the part). `Resources.cfg` defines Antimatter only when the Community Resource Pack
   doesn't.
