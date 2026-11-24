@@ -84,9 +84,9 @@ namespace FarFutureWeaponry
         void Vanish()
         {
             part.FindModuleImplementing<ModuleFFWTrail>()?.Hide();
-            foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
-            foreach (Collider c in part.GetComponentsInChildren<Collider>(true)) c.enabled = false;
-            foreach (AudioSource a in part.GetComponentsInChildren<AudioSource>(true)) a.mute = true;
+            foreach (Renderer r in part.GetComponentsInChildren<Renderer>(true)) if (!Visuals.OnCamera(r)) r.enabled = false;
+            foreach (Collider c in part.GetComponentsInChildren<Collider>(true)) if (!Visuals.OnCamera(c)) c.enabled = false;
+            foreach (AudioSource a in part.GetComponentsInChildren<AudioSource>(true)) if (!Visuals.OnCamera(a)) a.mute = true;
             if (part.rb != null) { part.rb.velocity = Vector3.zero; part.rb.angularVelocity = Vector3.zero; part.rb.isKinematic = true; }
         }
     }

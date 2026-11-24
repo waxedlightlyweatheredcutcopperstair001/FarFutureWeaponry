@@ -56,14 +56,14 @@ namespace FarFutureWeaponry
 
         void Collect(Transform root)
         {
-            foreach (AudioSource a in root.GetComponentsInChildren<AudioSource>(true)) sounds.Add((a, a.pitch));
+            foreach (AudioSource a in root.GetComponentsInChildren<AudioSource>(true)) if (!Visuals.OnCamera(a)) sounds.Add((a, a.pitch));
             foreach (Animation a in root.GetComponentsInChildren<Animation>(true))
-                foreach (AnimationState s in a) anims.Add((s, s.speed));
-            foreach (Animator a in root.GetComponentsInChildren<Animator>(true)) animators.Add((a, a.speed));
-            foreach (ParticleSystem ps in root.GetComponentsInChildren<ParticleSystem>(true)) particles.Add((ps, ps.main.simulationSpeed));
-            foreach (KSPParticleEmitter e in root.GetComponentsInChildren<KSPParticleEmitter>(true)) emitters.Add((e, e.enabled));
+                if (!Visuals.OnCamera(a)) foreach (AnimationState s in a) anims.Add((s, s.speed));
+            foreach (Animator a in root.GetComponentsInChildren<Animator>(true)) if (!Visuals.OnCamera(a)) animators.Add((a, a.speed));
+            foreach (ParticleSystem ps in root.GetComponentsInChildren<ParticleSystem>(true)) if (!Visuals.OnCamera(ps)) particles.Add((ps, ps.main.simulationSpeed));
+            foreach (KSPParticleEmitter e in root.GetComponentsInChildren<KSPParticleEmitter>(true)) if (!Visuals.OnCamera(e)) emitters.Add((e, e.enabled));
             foreach (Renderer r in root.GetComponentsInChildren<Renderer>(true))
-                foreach (Material m in r.sharedMaterials)
+                if (!Visuals.OnCamera(r)) foreach (Material m in r.sharedMaterials)
                 {
                     if (m == null || m.shader == null || !m.shader.name.StartsWith("Waterfall")) continue;
                     foreach (string prop in ScrollProps)

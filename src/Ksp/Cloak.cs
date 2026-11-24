@@ -158,12 +158,14 @@ namespace FarFutureWeaponry
             }
         }
 
-        // Diagnostics: every renderer the cloak switches off is logged once per activation (path, kind, shader), so a
-        // KSP.log shows whether it hid something belonging to another mod.
+        // Diagnostics: renderers the cloak switches off that aren't the parts' own meshes (effects, interiors, anything
+        // other mods hang on a part) are logged once per activation (path, kind, shader), so a KSP.log shows them.
         readonly HashSet<Renderer> reported = new HashSet<Renderer>();
 
         void Report(Part p, Renderer r, string kind)
         {
+            Transform model = p.transform.Find("model");
+            if (kind == "hull" && model != null && r.transform.IsChildOf(model)) return;   // (the part's own meshes: expected)
             if (!reported.Add(r)) return;
             string path = r.name;
             for (Transform t = r.transform.parent; t != null && t != p.transform; t = t.parent) path = t.name + "/" + path;
@@ -183,7 +185,7 @@ namespace FarFutureWeaponry
                 if (!isHidden) { list = new List<Renderer>(); hidden[p] = list; }
                 foreach (Renderer r in p.GetComponentsInChildren<Renderer>())
                 {
-                    if (r == null || !r.enabled || r.name.StartsWith("FFW ")) continue;
+                    if (r == null || !r.enabled || r.name.StartsWith("FFW ") || Visuals.OnCamera(r)) continue;
                     bool fx = !(r is MeshRenderer || r is SkinnedMeshRenderer) || !PartOverlay.IsHull(r);
                     if (fx == hull) continue;
                     r.enabled = false; list.Add(r); allHidden.Add(r);
@@ -194,7 +196,7 @@ namespace FarFutureWeaponry
                 // stand in the open and blank out whatever is behind them; with Deferred they also wreck the lighting.
                 if (hull && interiors && p.internalModel != null)
                     foreach (Renderer r in p.internalModel.GetComponentsInChildren<Renderer>())
-                        if (r != null && r.enabled) { r.enabled = false; list.Add(r); allHidden.Add(r); Report(p, r, "interior"); }
+                        if (r != null && r.enabled && !Visuals.OnCamera(r)) { r.enabled = false; list.Add(r); allHidden.Add(r); Report(p, r, "interior"); }
             }
             else if (!hide && isHidden)
             {

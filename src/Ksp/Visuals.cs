@@ -203,6 +203,18 @@ namespace FarFutureWeaponry
 
         public static Camera Camera => FlightCamera.fetch != null ? FlightCamera.fetch.mainCamera : Camera.main;
 
+        /// <summary>
+        /// Whether an object belongs to a camera rig rather than the craft. In flight KSP parents the flight camera
+        /// ("main camera pivot") under the active vessel's root part, and mods hang helpers on it (Deferred's forward
+        /// quad, EVE's screen-space shadow manager): anything that walks a part's children must leave those alone.
+        /// </summary>
+        public static bool OnCamera(Component c)
+        {
+            if (c == null) return false;
+            if (FlightCamera.fetch != null && c.transform.IsChildOf(FlightCamera.fetch.transform)) return true;
+            return c.GetComponentInParent<Camera>() != null;
+        }
+
         /// <summary>A unit quad facing +z, for camera-facing sprites.</summary>
         public static Mesh Quad()
         {

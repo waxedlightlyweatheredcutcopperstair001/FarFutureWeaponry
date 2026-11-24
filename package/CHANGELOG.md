@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.6
+
+- **Cloaking Device**: fixed the darkened scene, white-outs and smearing (seen with Deferred and EVE). In flight, KSP
+  hangs the flight camera under the craft's root part, and Deferred and EVE hang helpers on the camera; the cloak hid
+  everything under the parts, those helpers included. It now leaves anything on a camera alone. The Phase-Shift
+  Missile's vanishing act and the tachyon time-stop had the same blind spot and are fixed too.
+- The cloak's log now lists only what it hides beyond the parts' own meshes (effects, interiors).
+
 ## 0.10.5
 
 - Cloaking Device: logs every renderer it hides (in KSP.log, `[FFW] cloak hides ...`), to track down the rendering

@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.10.5
+# Far Future Weaponry 0.10.6
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
