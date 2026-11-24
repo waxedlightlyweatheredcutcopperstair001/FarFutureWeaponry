@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.4
+
+- **Cloaking Device**: fixed the darkened scene, white-outs and vanishing ground seen from most angles. The cloak hid
+  the hull but left the cockpits' interiors (IVAs, which stock KSP and FreeIva draw in the flight view) and their
+  invisible depth masks in place. With the hull gone, those masks blanked out the scene behind them and, with
+  Deferred, upset the lighting. Interiors now vanish with their parts (unless you're looking from inside, in IVA).
+- Cloaking Device: stopped an error repeating every frame after switching it (KSP's cached list of part renderers
+  still held the cloak's removed overlays). Overlays now let KSP re-gather that list when they're removed.
+
 ## 0.10.3
 
 - **Cloaking Device**, force field, rust, Kraken wave and holograms: the overlay shaders could produce invalid pixel

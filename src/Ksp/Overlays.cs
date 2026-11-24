@@ -53,11 +53,13 @@ namespace FarFutureWeaponry
         public readonly MaterialPropertyBlock Block = new MaterialPropertyBlock();
         public readonly Material Material;
         readonly bool follow;
+        readonly Part part;
 
         /// <param name="followSource">shown only while the part's own renderer is (false for the cloak, which hides them)</param>
         public PartOverlay(Part part, Shader shader, string name, bool followSource = true)
         {
             follow = followSource;
+            this.part = part;
             Material = new Material(shader) { name = name };
             foreach (MeshFilter mf in part.FindModelComponents<MeshFilter>())
             {
@@ -115,7 +117,10 @@ namespace FarFutureWeaponry
 
         public void Destroy()
         {
-            foreach (GameObject go in objects) if (go != null) Object.Destroy(go);
+            foreach (GameObject go in objects) if (go != null) { go.transform.SetParent(null, false); Object.Destroy(go); }
+            // (KSP caches each part's renderers; ours were in that list. Let it re-gather, or its own code, such as
+            // highlighting and part opacity, hits the destroyed ones.)
+            if (objects.Count > 0 && part != null) part.ResetModelRenderersCache();
             objects.Clear(); renderers.Clear();
             if (Material != null) Object.Destroy(Material);
         }

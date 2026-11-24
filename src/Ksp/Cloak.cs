@@ -94,7 +94,16 @@ namespace FarFutureWeaponry
             // BDArmory's cloak fades every part's material opacity (Part.SetOpacity) as it switches; ours already hides
             // them, and with Deferred a see-through part material darkens the scene. Keep them opaque.
             if (bdaCloak != null && Time.time - switchedAt < 3)
-                foreach (Part p in vessel.parts) if (p != null) p.SetOpacity(1);
+                foreach (Part p in vessel.parts)
+                {
+                    if (p == null) continue;
+                    try { p.SetOpacity(1); }
+                    catch (NullReferenceException) { p.ResetModelRenderersCache(); }   // (its cached renderers included destroyed ones)
+                }
+            // Looking from inside (IVA): give the interiors back; outside again: hide them again.
+            bool iva = CameraManager.Instance != null && (CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.IVA ||
+                                                         CameraManager.Instance.currentCameraMode == CameraManager.CameraMode.Internal);
+            if (iva == interiors) { Show(); interiors = !iva; }
             // The wave sweeps out from the middle to past the far end: each part vanishes (or comes back) as it reaches it.
             float far = 2;
             foreach (Part p in vessel.parts) if (p != null) far = Mathf.Max(far, Vector3.Distance(p.transform.position, c) + 2);
@@ -148,7 +157,9 @@ namespace FarFutureWeaponry
             }
         }
 
-        static void SetHidden(Dictionary<Part, List<Renderer>> hidden, Part p, bool hide, bool hull, bool rescan)
+        bool interiors = true;      // hide the parts' interiors (IVAs) too: not while the player is looking from inside
+
+        void SetHidden(Dictionary<Part, List<Renderer>> hidden, Part p, bool hide, bool hull, bool rescan)
         {
             bool isHidden = hidden.TryGetValue(p, out var list);
             if (hide && (!isHidden || rescan))
@@ -162,6 +173,12 @@ namespace FarFutureWeaponry
                     if (fx == hull) continue;
                     r.enabled = false; list.Add(r); allHidden.Add(r);
                 }
+                // The interior (IVA): stock KSP and FreeIva draw it in the flight view, fenced in by the hull and by depth
+                // masks (they write depth, no colour, so it only shows through the windows). With the hull gone the masks
+                // stand in the open and blank out whatever is behind them; with Deferred they also wreck the lighting.
+                if (hull && interiors && p.internalModel != null)
+                    foreach (Renderer r in p.internalModel.GetComponentsInChildren<Renderer>())
+                        if (r != null && r.enabled) { r.enabled = false; list.Add(r); allHidden.Add(r); }
             }
             else if (!hide && isHidden)
             {
