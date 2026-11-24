@@ -15,6 +15,7 @@ namespace FarFutureWeaponry
         [KSPField] public float rampSeconds = 0.6f;
         [KSPField] public float pulseRate = 0.8f;      // Hz
         [KSPField] public float pulseDepth = 0.25f;
+        [KSPField] public float idleGlow = 0;          // glow before it's armed (0: dark), as a share of the colour
 
         static readonly int EmissiveId = Shader.PropertyToID("_EmissiveColor");
         readonly List<Material> mats = new List<Material>();
@@ -27,7 +28,8 @@ namespace FarFutureWeaponry
             colour = Core.Rgba.Parse(color, new Core.Rgba(0.35f, 0.65f, 1, 1)).ToColor();
             foreach (Renderer r in part.FindModelComponents<Renderer>())
                 foreach (Material m in r.materials)       // (instances: only this part glows)
-                    if (m != null && m.HasProperty(EmissiveId)) { m.SetColor(EmissiveId, Color.black); mats.Add(m); }
+                    if (m != null && m.HasProperty(EmissiveId)) { mats.Add(m); }
+            SetGlow(idleGlow);
             if (!HighLogic.LoadedSceneIsFlight) return;
             Bda.Init();
             missile = Bda.FindMissile(part);
@@ -39,7 +41,12 @@ namespace FarFutureWeaponry
             if (firedAt < 0) { if (Bda.MissileFired(missile)) firedAt = Time.time; else return; }
             float t = Time.time - firedAt - armDelay;
             if (t < 0) return;
-            float k = Mathf.Clamp01(t / Mathf.Max(0.01f, rampSeconds)) * (1 - pulseDepth + pulseDepth * Mathf.Sin(2 * Mathf.PI * pulseRate * t));
+            float full = 1 - pulseDepth + pulseDepth * Mathf.Sin(2 * Mathf.PI * pulseRate * t);
+            SetGlow(Mathf.Lerp(idleGlow, full, Mathf.Clamp01(t / Mathf.Max(0.01f, rampSeconds))));
+        }
+
+        void SetGlow(float k)
+        {
             Color c = colour * k; c.a = 1;
             foreach (Material m in mats) if (m != null) m.SetColor(EmissiveId, c);
         }

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.0
+
+- **Antimatter Bomb**: its own model, replacing the borrowed placeholder. An enlarged FAB-250 (2.4 m, 0.6 m across) in
+  black, with a tail ring and fins, and in the middle a protruding containment section in the style of Far Future
+  Technologies' antimatter tanks: charcoal panel bands, crinkled bronze foil and four rails with instrument boxes.
+  Purple circuit traces run fore and aft from a ring at each end of it, recessed in grooves. They glow faintly on the
+  rail and pulse brighter once the bomb is dropped and armed. **Craft already carrying an Antimatter Bomb need it
+  re-attached** (its size and attach point changed).
+
 ## 0.11.2
 
 - **Kessler Swarm Pod**: splits 50 m from its target (was 500 m), so the dart cone is only a few metres wide when it

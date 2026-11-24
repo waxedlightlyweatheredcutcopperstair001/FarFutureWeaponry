@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.11.2
+# Far Future Weaponry 0.12.0
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -53,7 +53,7 @@ Drop them like any BDArmory bomb.
 | **Gravity Bomb** | A collapsing bubble of bent space pulls everything within 300 m towards it at 6 g for 3 s, with air rushing in. Then a white flash and a pulse (a 250 kg TNT blast) hit whatever it gathered. |
 | **Warp Bomb** | A black hole for 10 s, with air rushing in. Everything within 1 km is pulled in at 20 g, and anything that gets within 250 m is destroyed. Its trench glows blue once it's dropped and armed. |
 | **Tachyon Bomb** | A green dome (everything inside tinted green) stops time for every craft within 500 m, yours included. They slow to a stop: their engines, plumes, sounds, landing gear and kerbals all freeze, and nothing burns fuel. Explosions inside stop too, damage included. Set how long it lasts in the part's window, from 5 to 60 s. Then time speeds back up, and each craft carries on as it was. The bomb's flash and pieces hang frozen in the middle, play backwards at the end, and the bomb drops as a harmless dud. No damage. |
-| **Antimatter Bomb** | About 500 megatons, drawn as an antimatter blast. Anything loaded within about 40 km is destroyed. |
+| **Antimatter Bomb** | About 500 megatons, drawn as an antimatter blast. Anything loaded within about 40 km is destroyed. Its purple circuit traces glow faintly, brighter once armed. |
 | **Blue Rinse** | A solid electric-blue sphere spreads out to 1 km. Every Kerbal inside it dies, aboard a craft or on EVA, under a blue wave over the hull; it then carries on spreading and fades away. Nothing else is harmed. |
 | **Seismic Charge** | A beat of silence, a deep ringing "bwaaang", and a flat electric-blue ring races out to 1 km, level with the ground. Every part it passes through (within 6 m of its plane) takes 4000 damage; buildings in its path come down. Anything above or below it is untouched. |
 | **Mushroom Bomb** | About 2 megatons, with a green flash, green flames and a dark green cloud. Danger radius about 9 km. |
@@ -91,5 +91,5 @@ Without Far Future Technologies (or the Community Resource Pack), this mod defin
 
 ## Licence
 
-Code: MIT. Configs and assets: CC BY-SA 4.0. The Warp Bomb's and Kraken Missile's models are the mod's own; the other, placeholder models come from BDArmory (CC BY-SA 2.0), BDArmory
+Code: MIT. Configs and assets: CC BY-SA 4.0. The Warp Bomb's, Kraken Missile's and Antimatter Bomb's models are the mod's own; the other, placeholder models come from BDArmory (CC BY-SA 2.0), BDArmory
 Extended (CC BY-SA 4.0) and North Kerbin Dynamics Renewed (CC BY-SA 4.0); see `LICENSE` and `Licences/`.

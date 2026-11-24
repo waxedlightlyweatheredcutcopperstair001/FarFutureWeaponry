@@ -78,10 +78,6 @@ MANIFEST = [
     ('BDA', 'Parts/mk82Bomb/texture.png', 'Parts/GravityBomb/texture.png', VIOLET),
     ('BDA', 'Parts/mk82Bomb/model.mu', 'Parts/TachyonBomb/model.mu', None),
     ('BDA', 'Parts/mk82Bomb/texture.png', 'Parts/TachyonBomb/texture.png', GREEN),
-    # Antimatter bomb: NKDR's Castle Bravo.
-    ('NKDR', 'parts/Castle Bravo/model.mu', 'Parts/AntimatterBomb/model.mu', None),
-    ('NKDR', 'parts/Castle Bravo/COLOR Castle Bravo.png', 'Parts/AntimatterBomb/COLOR Castle Bravo.png', MAGENTA),
-    ('NKDR', 'parts/Castle Bravo/tobump Castle Bravo_NRM.png', 'Parts/AntimatterBomb/tobump Castle Bravo_NRM.png', None),
     # Mushroom bomb: NKDR's Tsar Bomba (round and fat, like the reference).
     ('NKDR', 'parts/Tsar Bomba/model.mu', 'Parts/MushroomBomb/model.mu', None),
     ('NKDR', 'parts/Tsar Bomba/Tsar Bomba.png', 'Parts/MushroomBomb/Tsar Bomba.png', PERIWINKLE),
