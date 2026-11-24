@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.1
+
+- **Kraken Missile**: the glass dome is a darker red and less see-through, so it stands out; the flesh's glow is
+  much stronger (brighter, wider veins with a soft halo, and a faint glow over the whole lump), easy to see from a
+  distance, and stronger still once launched.
+
 ## 0.11.0
 
 - **Kraken Missile**: its own model, replacing the borrowed placeholder. An enlarged Hellfire (2.2 m, 0.25 m across)

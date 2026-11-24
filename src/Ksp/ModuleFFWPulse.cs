@@ -14,8 +14,8 @@ namespace FarFutureWeaponry
         [KSPField] public float period = 1.5f;
         [KSPField] public float scale = 0.05f;
         [KSPField] public string color = "255, 40, 30, 255";
-        [KSPField] public float idleGlow = 0.25f;
-        [KSPField] public float firedGlow = 0.9f;
+        [KSPField] public float idleGlow = 0.8f;
+        [KSPField] public float firedGlow = 1.6f;
 
         static readonly int EmissiveId = Shader.PropertyToID("_EmissiveColor");
         Transform beating;

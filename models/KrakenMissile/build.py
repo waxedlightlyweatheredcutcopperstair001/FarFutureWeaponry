@@ -128,7 +128,8 @@ def flesh_texture(out):
     alb *= (0.8 + 0.4 * mott)[..., None]
     alb = alb * (1 - veins[..., None] * 0.7) + vein * veins[..., None] * 0.7
     hgt = (base - 0.5) * 6 + veins * 2.5 + (mott - 0.5) * 2
-    emi = np.clip(veins * 0.9, 0, 1)
+    halo = np.clip(1 - v1 / 0.07, 0, 1) ** 2                      # (a soft glow round the big veins)
+    emi = np.clip(veins * 1.0 + halo * 0.45 + 0.12, 0, 1)
     main = mulib.save_png('KrakenFlesh', np.clip(alb, 0, 1), out)
     nrm = mulib.save_png('KrakenFlesh_NRM', mulib.normal_map(hgt.astype(np.float32), 0.5), out, data=True)
     glow = mulib.save_png('KrakenFlesh_Emissive', np.dstack([emi, emi * 0.25, emi * 0.2]), out)
@@ -401,7 +402,7 @@ def main():
     glass_tex = mulib.save_png('KrakenGlass', np.ones((32, 32, 3), np.float32), out)
     m_body = mulib.ksp_material('Kraken', body_tex, body_nrm, spec=0.25, shininess=0.3)
     m_flesh = mulib.ksp_material('KrakenFlesh', fl_tex, fl_nrm, fl_glow, spec=0.6, shininess=0.7)
-    m_glass = mulib.glass_material('KrakenGlass', glass_tex, (1.0, 0.82, 0.82), 0.18)
+    m_glass = mulib.glass_material('KrakenGlass', glass_tex, (0.55, 0.16, 0.16), 0.45)   # (dark red, half see-through)
 
     model = mulib.root('model')
     b = B(); body(b); fins(b); plate_blocks = plate(b)
