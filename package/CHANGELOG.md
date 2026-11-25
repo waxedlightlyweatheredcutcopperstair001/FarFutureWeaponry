@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.14.4
+
+- **Long Range Nuclear Cruise Missile**:
+  - The boosters give their full thrust in any air (only the ramjet's cruise thrust depends on the air now).
+  - Ground launch: BDArmory's cruise guidance started by levelling the missile off the moment it left the rail, which
+    flew it into the ground. Its guidance now waits out the 3.5 s boost; fired near the ground, the boosters pitch it
+    up to 30 degrees and hold it there until they burn out.
+  - No more self-destruct shortly after launch: BDArmory blows up a missile 1.5 s after deciding it has "missed" (its
+    target behind it, lost, or too far above it). A cruise missile flies on to its GPS point instead, and if the point
+    is out of range it flies until the ramjet's 380 s run out, then glides down and goes off where it lands.
+
 ## 0.14.3
 
 - **Long Range Nuclear Cruise Missile** actually flies: it was far too weak for its weight. Its boost, cruise thrust,

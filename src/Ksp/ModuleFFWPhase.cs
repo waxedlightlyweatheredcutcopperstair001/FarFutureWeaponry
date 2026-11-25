@@ -101,16 +101,39 @@ namespace FarFutureWeaponry
         [KSPField] public float fullDensity = 0.6f;    // kg/m³ for full thrust
         [KSPField] public float minDensity = 0.02f;    // below this, no thrust
 
-        // Climb-out: the boosters pitch it up off the launcher (BDArmory steers it by its fins, which needs airspeed:
-        // launched level from the ground, it would plough along it). During the boost, below climbBelow metres above the
-        // ground, it's turned up to climbAngle degrees along its heading, at up to climbRate degrees a second.
+        // Climb-out: the boosters pitch it up off the launcher (BDArmory steers it by its fins, which needs airspeed, and
+        // its cruise guidance starts by levelling off: launched from the ground it ploughed into it). Fired below
+        // climbBelow metres above the ground, it's turned up to climbAngle degrees along its heading (at up to climbRate
+        // degrees a second) and held there for the rest of the boost; the part's guidanceDelay keeps BDArmory's guidance
+        // out of it meanwhile.
         [KSPField] public float climbAngle = 35;
         [KSPField] public float climbBelow = 1500;
         [KSPField] public float climbRate = 60;
 
+        // A cruise missile flies on to its GPS point (or until it hits something): BDArmory's "miss" check, which makes a
+        // missile pointing away from its target, or without one, blow itself up 1.5 s later, is skipped for it.
+        [KSPField] public bool neverMiss = true;
+
         PartModule missile;
-        System.Reflection.FieldInfo thrustField, cruiseField;
-        float baseThrust, baseCruise, dropTime, boostTime, firedAt = -1;
+        System.Reflection.FieldInfo cruiseField;
+        float baseCruise, dropTime, boostTime, firedAt = -1;
+
+        static readonly System.Collections.Generic.HashSet<PartModule> noMiss = new System.Collections.Generic.HashSet<PartModule>();
+
+        static bool CheckMissPrefix(PartModule __instance) => !noMiss.Contains(__instance);
+
+        static bool missPatched;
+        static void InstallMissPatch()
+        {
+            if (missPatched) return;
+            missPatched = true;
+            var t = Bda.FindType("BDArmory.Weapons.Missiles.MissileLauncher");
+            var m = t?.GetMethod("CheckMiss", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+            if (m == null || !HarmonyBridge.Prefix(m, typeof(ModuleFFWRamjet).GetMethod(nameof(CheckMissPrefix), System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)))
+                Log.Warn("Couldn't patch BDArmory's MissileLauncher.CheckMiss: cruise missiles may still self-destruct as a \"miss\".");
+        }
+
+        void OnDestroy() { if (missile != null) noMiss.Remove(missile); }
 
         [KSPField(guiActive = true, guiName = "Ramjet")] public string status = "";
 
@@ -120,10 +143,10 @@ namespace FarFutureWeaponry
             Bda.Init();
             missile = Bda.FindMissile(part);
             if (missile == null) return;
-            thrustField = missile.GetType().GetField("thrust");
+            // (only the cruise thrust is the ramjet's: the boost is solid rockets, the same in any air)
             cruiseField = missile.GetType().GetField("cruiseThrust");
-            if (thrustField != null) baseThrust = (float)thrustField.GetValue(missile);
             if (cruiseField != null) baseCruise = (float)cruiseField.GetValue(missile);
+            if (neverMiss) { InstallMissPatch(); noMiss.Add(missile); }
             dropTime = missile.GetType().GetField("dropTime")?.GetValue(missile) is float d ? d : 0;
             boostTime = missile.GetType().GetField("boostTime")?.GetValue(missile) is float bt ? bt : 0;
         }
@@ -135,11 +158,12 @@ namespace FarFutureWeaponry
             if (!HighLogic.LoadedSceneIsFlight || missile == null || vessel == null) return;
             double rho = vessel.atmDensity;
             float k = rho <= minDensity ? 0 : Mathf.Clamp01((float)((rho - minDensity) / (fullDensity - minDensity)));
-            thrustField?.SetValue(missile, baseThrust * k);
             cruiseField?.SetValue(missile, baseCruise * k);
             status = k <= 0 ? "no air: flamed out" : $"{k * 100:0}% thrust";
             ClimbOut();
         }
+
+        bool climbing;      // (launched low: it keeps its climb for the rest of the boost)
 
         void ClimbOut()
         {
@@ -147,7 +171,8 @@ namespace FarFutureWeaponry
             if (firedAt < 0) { if (Bda.MissileFired(missile)) firedAt = Time.time; else return; }
             float t = Time.time - firedAt;
             if (t < dropTime || t > dropTime + boostTime) return;
-            if (vessel.heightFromTerrain > climbBelow && vessel.heightFromTerrain >= 0) return;
+            if (vessel.heightFromTerrain > climbBelow && vessel.heightFromTerrain >= 0 && !climbing) return;
+            climbing = vessel.heightFromTerrain >= 0 && vessel.heightFromTerrain <= climbBelow || climbing;
             Vector3 up = (vessel.CoM - vessel.mainBody.position).normalized;
             Vector3 fwd = part.transform.forward;
             Vector3 heading = Vector3.ProjectOnPlane(fwd, up);
