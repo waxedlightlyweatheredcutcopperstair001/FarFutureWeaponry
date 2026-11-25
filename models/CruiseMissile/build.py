@@ -8,8 +8,7 @@ solid boosters, evenly spaced (top left, top right, bottom, under the duct), eac
 Run with tools/model.py CruiseMissile. Writes model.mu, CruiseMissile.png (+_NRM, _Emissive).
 
 Axes (Blender): the missile points along +Y, its back (the rail) is +Z. Texture (2048 x 2048): v 0-0.5 the fuselage
-(u along its length, v round it from the top: the seam is on top, clear of the markings), v 0.5-0.75 the duct,
-v 0.75-1 swatches in eight columns (see SWATCH).
+(u along its length, v round it from the top: the seam is on top, clear of the markings), v 0.75-1 swatches in eight columns (see SWATCH).
 """
 import math, os, sys
 
@@ -21,12 +20,15 @@ from mathutils import Vector
 
 import mulib
 
-R = 0.25                                  # fuselage
-Y_TAIL, Y_NOSE, Y_NOSE_BASE = -3.85, 4.0, 2.2
+R = 0.25                                  # the engine section (the widest part)
+Y_TAIL, Y_NOSE = -4.0, 4.0                # nozzle exit .. needle tip
+Y_BOAT, Y_TAPER = -3.55, -0.7             # boat-tail starts / the long taper to the nose starts
+Y_BLACK = 2.4                             # black needle from here
 L_TEX = 8.2                               # the fuselage's texture length (from Y_TEX0)
 Y_TEX0 = -4.1
-DUCT_Z, DUCT_R = -0.40, 0.19              # the ramjet duct, under the fuselage
-Y_INTAKE, Y_NOZZLE = -0.2, -4.05
+Y_MOUTH, Y_SCOOP_END = -0.5, -2.8         # the chin intake: its mouth, and where it has curved up into the belly
+SCOOP_Z, SCOOP_A, SCOOP_B = -0.08, 0.19, 0.28     # its section: an ellipse centred SCOOP_Z, half-width A, half-height B
+NOZZLE_R = 0.2
 B_R = 0.12                                # boosters
 SEG = 48
 SEED = 1958
@@ -49,10 +51,6 @@ def body_uv(y, a):
     return ((y - Y_TEX0) / L_TEX, 0.01 + (a / (2 * math.pi)) * 0.47)
 
 
-def duct_uv(y, a):
-    return ((y - Y_NOZZLE) / (Y_INTAKE - Y_NOZZLE), 0.51 + (a / (2 * math.pi)) * 0.23)
-
-
 def sw_uv(name, s=0.5, t=0.5):
     k = SWATCH[name]
     return ((k + 0.1 + 0.8 * min(1, max(0, s))) / 8, 0.75 + 0.02 + 0.96 * min(1, max(0, t)) * 0.25)
@@ -63,12 +61,21 @@ def sw_any(name):
 
 
 def fuselage_r(y):
-    if y >= Y_NOSE_BASE:
-        s = (y - Y_NOSE_BASE) / (Y_NOSE - Y_NOSE_BASE)
-        return R * (1 - s) * (1 + 0.45 * s)                      # a long ogive, just convex
-    if y >= -3.0: return R
-    s = (y + 3.0) / (Y_TAIL + 3.0)
-    return R - (R - 0.12) * s * s                                 # boat-tail
+    """The body: the engine section at full width, a boat-tail to the nozzle, one long taper to the needle nose."""
+    if y >= Y_TAPER:
+        s = min(1.0, (y - Y_TAPER) / (Y_NOSE - Y_TAPER))
+        return R * (1 - s) ** 1.05
+    if y >= Y_BOAT: return R
+    s = (y - Y_BOAT) / (Y_TAIL - Y_BOAT)
+    return R - (R - NOZZLE_R) * s * s
+
+
+def scoop_b(y):
+    """The intake's depth: full for the front third, then curving up into the belly (inside it by the end)."""
+    t = (Y_MOUTH - y) / (Y_MOUTH - Y_SCOOP_END)
+    t = min(1, max(0, (t - 0.3) / 0.7)); t = t * t * (3 - 2 * t)
+    return 0.06 + (SCOOP_B - 0.06) * (1 - t)
+
 
 # ---------------------------------------------------------------- texture
 
@@ -84,9 +91,10 @@ def texture(out):
     fus = alb[:1024]; fh = hgt[:1024]; fg = gloss[:1024]
     fus[:] = SILVER; fg[:] = 0.6
     # Black nose and a dark band behind it; faint section joints.
-    fus[:, col(Y_NOSE_BASE):] = (0.05, 0.05, 0.06)
-    fus[:, col(1.82):col(1.98)] = (0.06, 0.06, 0.07)
-    for y in (-2.6, -1.4, -0.6, 0.15, 1.6, Y_NOSE_BASE):
+    fus[:, col(Y_BLACK):] = (0.05, 0.05, 0.06)
+    fus[:, col(2.1):col(2.25)] = (0.06, 0.06, 0.07)
+    fus[:, :col(Y_TAIL + 0.12)] = (0.25, 0.24, 0.24)             # (scorched by the nozzle)
+    for y in (-3.3, -2.5, -0.7, 0.6, 1.6, Y_BLACK):
         c = col(y); fh[:, c - 1:c + 2] -= 2; fus[:, c - 1:c + 2] *= 0.8
     # The stencilled name and the emblem, on each side (the left side's turned half round, so both read upright).
     def glyphs(text, y0, theta, cell_u, cell_v, colour, flip):
@@ -100,11 +108,11 @@ def texture(out):
                     u0 = col(y0) + int(gx * cell_u); v0 = rc + int((gy - 3.5) * cell_v)
                     fus[max(v0, 0):v0 + int(cell_v) + 1, u0:u0 + int(cell_u) + 1] = colour
     cu, cv = 0.024 * px_u, 0.032 * px_v
-    glyphs("BOBRIGH", 0.35, 0.0, cu, cv, (0.08, 0.08, 0.1), False)
-    glyphs("BOBRIGH", 0.35, math.pi, cu, cv, (0.08, 0.08, 0.1), True)
+    glyphs("BOBRIGH", -2.25, 0.0, cu, cv, (0.08, 0.08, 0.1), False)
+    glyphs("BOBRIGH", -2.25, math.pi, cu, cv, (0.08, 0.08, 0.1), True)
     yy, xx = np.mgrid[0:1024, 0:N]
     for theta, flip in ((0.0, False), (math.pi, True)):
-        cy, cx = row(theta), col(-0.35)
+        cy, cx = row(theta), col(-0.95)
         du, dv = (xx - cx) / px_u, (yy - cy) / px_v
         d = np.sqrt(du * du + dv * dv)
         fus[d < 0.135] = (0.1, 0.1, 0.12)
@@ -119,14 +127,6 @@ def texture(out):
                 u0 = cx + int(gx * 0.026 * px_u - 0.013 * px_u); v0 = cy + int(gy * 0.026 * px_v - 0.013 * px_v)
                 fus[v0:v0 + int(0.026 * px_v) + 1, u0:u0 + int(0.026 * px_u) + 1] = (0.95, 0.95, 0.95)
     fus *= (0.95 + 0.1 * mulib.value_noise(1024, N, 30, SEED))[..., None]
-    # The duct (rows 1024-1535): silver, a few joints, dark rear.
-    duct = alb[1024:1536]; dh = hgt[1024:1536]; gloss[1024:1536] = 0.6
-    duct[:] = SILVER
-    def dcol(y): return int(round((y - Y_NOZZLE) / (Y_INTAKE - Y_NOZZLE) * N))
-    for y in (-3.2, -2.0, -0.9):
-        c = dcol(y); dh[:, c - 1:c + 2] -= 2; duct[:, c - 1:c + 2] *= 0.8
-    duct[:, :dcol(-3.75)] = (0.25, 0.24, 0.24)                    # (scorched near the nozzle)
-    duct *= (0.95 + 0.1 * mulib.value_noise(512, N, 30, SEED + 1))[..., None]
     # Swatches (rows 1536-2047).
     w = N // 8
     for name, c, g in (('black', (0.05, 0.05, 0.06), 0.4), ('metal', (0.3, 0.3, 0.31), 0.6), ('fin', (0.72, 0.66, 0.32), 0.45),
@@ -184,34 +184,52 @@ def cap(b, ring, centre, uv, outward):
 
 
 def fuselage(b):
-    ys = [Y_TAIL + (-3.0 - Y_TAIL) * k / 6 for k in range(6)] + [-3.0 + 5.2 * k / 10 for k in range(10)] + \
-         [Y_NOSE_BASE + (Y_NOSE - 0.02 - Y_NOSE_BASE) * k / 16 for k in range(17)]
+    """The body of revolution, ending at the back in the ramjet's nozzle (on the axis): its rim glows."""
+    ys = [Y_TAIL + (Y_BOAT - Y_TAIL) * k / 6 for k in range(6)] + [Y_BOAT + (Y_TAPER - Y_BOAT) * k / 10 for k in range(10)] + \
+         [Y_TAPER + (Y_NOSE - 0.02 - Y_TAPER) * k / 20 for k in range(21)]
     rings = revolve(b, [(y, fuselage_r(y)) for y in ys], body_uv)
-    cap(b, rings[0], (0, Y_TAIL - 0.01, 0), sw_uv('metal'), Vector((0, -1, 0)))
     cap(b, rings[-1], (0, Y_NOSE, 0), body_uv(Y_NOSE - 0.01, 0.1), Vector((0, 1, 0)))
+    # The nozzle: its rim (facing back, glowing), the wall inside (facing in, glowing), a dark end.
+    revolve(b, [(Y_TAIL, 0.15), (Y_TAIL, NOZZLE_R)], sw_any('hot'), False)
+    revolve(b, [(Y_TAIL + 0.15, 0.15), (Y_TAIL, 0.15)], sw_any('hot'), True)
+    ring = [b.v(P(Y_TAIL + 0.15, 0.15, 2 * math.pi * j / SEG)) for j in range(SEG)]
+    cap(b, ring, (0, Y_TAIL + 0.15, 0), sw_uv('inside'), Vector((0, -1, 0)))
 
 
-def duct(b):
-    """The ramjet: a spiked intake at the front, the duct, a converging nozzle whose ring glows."""
-    cz = DUCT_Z
-    rv = lambda prof, uvf, smooth=True, seg=SEG: revolve(b, prof, uvf, smooth, 0.0, cz, seg)
-    # Outside, from the nozzle forward (faces outward).
-    rv([(Y_NOZZLE, 0.15), (-3.75, DUCT_R)], duct_uv, False)
-    rv([(-3.75 + (Y_INTAKE + 3.75) * k / 8, DUCT_R) for k in range(9)], duct_uv)
-    # Intake: the lip (facing forward), the inner wall back to the throat (facing in), the throat (dark, forward).
-    rv([(Y_INTAKE, DUCT_R), (Y_INTAKE, 0.155)], sw_any('metal'), False)
-    rv([(Y_INTAKE, 0.155), (Y_INTAKE - 0.25, 0.155)], sw_any('inside'), True)
-    ring = [b.v(P(Y_INTAKE - 0.25, 0.155, 2 * math.pi * j / SEG, 0, cz)) for j in range(SEG)]
-    cap(b, ring, (0, Y_INTAKE - 0.25, cz), sw_uv('inside'), Vector((0, 1, 0)))
-    # The spike: a cone out of the throat.
-    spike = [(Y_INTAKE - 0.25, 0.1)] + [(Y_INTAKE - 0.25 + 0.4 * k / 6, 0.1 * (1 - k / 6) ** 1.2 + 0.002) for k in range(1, 7)]
-    rings = rv(spike, sw_any('metal'), True, 24)
-    cap(b, rings[-1], (0, spike[-1][0] + 0.004, cz), sw_uv('metal'), Vector((0, 1, 0)))
-    # Nozzle: the glowing ring (its rear face), the inner wall forward (facing in), a dark end.
-    rv([(Y_NOZZLE, 0.115), (Y_NOZZLE, 0.15)], sw_any('hot'), False)                # (outward at the same y: faces back)
-    rv([(Y_NOZZLE + 0.12, 0.115), (Y_NOZZLE, 0.115)], sw_any('hot'), True)       # (y decreasing: faces in)
-    ring = [b.v(P(Y_NOZZLE + 0.12, 0.115, 2 * math.pi * j / SEG, 0, cz)) for j in range(SEG)]
-    cap(b, ring, (0, Y_NOZZLE + 0.12, cz), sw_uv('inside'), Vector((0, -1, 0)))
+def ellipse_ring(b, y, a, bb, n=40):
+    return [b.v((a * math.cos(2 * math.pi * j / n), y, SCOOP_Z + bb * math.sin(2 * math.pi * j / n))) for j in range(n)]
+
+
+def scoop(b):
+    """
+    The chin intake, with no diverter: an elliptical scoop under the belly whose top runs inside the body (so the
+    fuselage skin is its top wall), open at the front, curving up into the belly towards the back.
+    """
+    n = 40
+    ys = [Y_MOUTH + (Y_SCOOP_END - Y_MOUTH) * k / 16 for k in range(17)]
+    rings = [ellipse_ring(b, y, SCOOP_A, scoop_b(y), n) for y in ys]
+    uvf = lambda k, j: sw_uv('silver', j / n, k / 16)
+    for k in range(16):
+        yc = (ys[k] + ys[k + 1]) / 2
+        for j in range(n):
+            j2 = (j + 1) % n
+            q = [rings[k][j], rings[k + 1][j], rings[k + 1][j2], rings[k][j2]]
+            c = sum((v.co for v in q), Vector()) / 4
+            b.face(q, [uvf(k, j), uvf(k + 1, j), uvf(k + 1, j2), uvf(k, j2)], True, c - Vector((0, c.y, SCOOP_Z)))
+    cap(b, rings[-1], (0, Y_SCOOP_END, SCOOP_Z), sw_uv('silver'), Vector((0, -1, 0)))   # (inside the body by here)
+    # The mouth: a lip (facing forward), the inside wall back to the throat (facing in), a dark throat.
+    inner_a, inner_b, depth = SCOOP_A - 0.022, SCOOP_B - 0.022, 0.4
+    lip_in = ellipse_ring(b, Y_MOUTH, inner_a, inner_b, n)
+    for j in range(n):
+        j2 = (j + 1) % n
+        b.face([rings[0][j], rings[0][j2], lip_in[j2], lip_in[j]], [sw_uv('metal')] * 4, False, Vector((0, 1, 0)))
+    back = ellipse_ring(b, Y_MOUTH - depth, inner_a, inner_b, n)
+    for j in range(n):
+        j2 = (j + 1) % n
+        q = [lip_in[j], lip_in[j2], back[j2], back[j]]
+        c = sum((v.co for v in q), Vector()) / 4
+        b.face(q, [sw_uv('inside')] * 4, True, Vector((0, c.y, SCOOP_Z)) - c)
+    cap(b, back, (0, Y_MOUTH - depth, SCOOP_Z), sw_uv('inside'), Vector((0, 1, 0)))
 
 
 def fin(b, th, cx, cz, root, tip, thick, swatch):
@@ -234,17 +252,17 @@ def fin(b, th, cx, cz, root, tip, thick, swatch):
 
 
 def fins(b):
-    up, down = math.pi / 2, -math.pi / 2
+    up = math.pi / 2
+    tail = [Y_TAIL + 0.05 + (-2.9 - Y_TAIL - 0.05) * k / 8 for k in range(9)]
     # The tall swept fin on top, its root along the boat-tail.
-    root = [(y, fuselage_r(y) - 0.01) for y in [-3.72 + 1.12 * k / 8 for k in range(9)]]
-    fin(b, up, 0, 0, root, [(-3.35, 0.95), (-3.8, 0.95)], 0.03, 'fin')
-    # Two smaller fins under the duct, in an inverted V (a single one would run through the bottom booster).
-    rootd = [(y, DUCT_R - 0.01) for y in (-3.6, -2.9)]
+    fin(b, up, 0, 0, [(y, fuselage_r(y) - 0.01) for y in tail], [(-3.35, 0.95), (-3.85, 0.95)], 0.03, 'fin')
+    # Two lower fins in an inverted V (the bottom booster sits between them).
     for th in (math.radians(-45), math.radians(-135)):
-        fin(b, th, 0, DUCT_Z, rootd, [(-3.35, 0.52), (-3.7, 0.52)], 0.025, 'fin')
-    # Two small canards behind the nose.
+        fin(b, th, 0, 0, [(y, fuselage_r(y) - 0.01) for y in tail], [(-3.4, 0.62), (-3.85, 0.62)], 0.025, 'fin')
+    # Two small canards on the forebody, their roots along its taper.
     for th in (0.0, math.pi):
-        fin(b, th, 0, 0, [(1.5, R - 0.01), (1.92, R - 0.01)], [(1.66, 0.48), (1.52, 0.48)], 0.02, 'silver')
+        root = [(y, fuselage_r(y) - 0.008) for y in (0.9, 1.05, 1.2, 1.35)]
+        fin(b, th, 0, 0, root, [(1.12, 0.38), (0.96, 0.38)], 0.02, 'silver')
 
 
 def box(b, lo, hi, swatch):
@@ -259,7 +277,7 @@ def lugs(b):
     for y in (-0.5, 0.5): box(b, (-0.035, y - 0.03, R - 0.01), (0.035, y + 0.03, R + 0.03), 'metal')
 
 
-def booster_mesh(toward):
+def booster_mesh(toward, reach):
     """One booster, in its own space (its middle at the origin, along Y), with two struts reaching `toward` the body."""
     b = B()
     y0, y1 = -1.25, 1.25          # nozzle exit .. nose tip
@@ -278,7 +296,7 @@ def booster_mesh(toward):
     # Struts to the body.
     d = toward.normalized()
     for y in (-0.15, 0.75):     # (ahead of the boat-tail, where the body is full width)
-        strut(b, d * (B_R - 0.01) + Vector((0, y, 0)), d * (B_R + 0.07) + Vector((0, y, 0)), 0.04, 0.02)
+        strut(b, d * (B_R - 0.01) + Vector((0, y, 0)), d * (reach + 0.01) + Vector((0, y, 0)), 0.04, 0.02)
     return b
 
 
@@ -294,11 +312,11 @@ def strut(b, a, c, half_y, half_w):
 
 def collider(parent):
     bm = bmesh.new()
-    for y in [Y_NOZZLE + k * (Y_NOSE - Y_NOZZLE) / 20 for k in range(21)]:
-        r = max(0.03, fuselage_r(min(y, Y_NOSE - 0.01))) if y > Y_TAIL else 0.12
+    for y in [Y_TAIL + k * (Y_NOSE - Y_TAIL) / 20 for k in range(21)]:
+        r = max(0.03, fuselage_r(min(y, Y_NOSE - 0.01)))
         for j in range(10): bm.verts.new(P(y, r, 2 * math.pi * j / 10))
-        if Y_NOZZLE <= y <= Y_INTAKE:
-            for j in range(10): bm.verts.new(P(y, DUCT_R, 2 * math.pi * j / 10, 0, DUCT_Z))
+    for y in (Y_MOUTH, (Y_MOUTH + Y_SCOOP_END) / 2):
+        for x in (-SCOOP_A * 0.7, 0, SCOOP_A * 0.7): bm.verts.new((x, y, SCOOP_Z - scoop_b(y)))
     bmesh.ops.convex_hull(bm, input=list(bm.verts))
     me = bpy.data.meshes.new('collider'); bm.to_mesh(me); bm.free()
     ob = bpy.data.objects.new('collider', me)
@@ -322,21 +340,21 @@ def main():
     tex, nrm, glow = texture(out)
     mat = mulib.ksp_material('CruiseMissile', tex, nrm, glow, spec=0.6, shininess=0.4)
     model = mulib.root('model')
-    b = B(); fuselage(b); duct(b); fins(b); lugs(b)
+    b = B(); fuselage(b); scoop(b); fins(b); lugs(b)
     tris = sum(len(f.verts) - 2 for f in b.bm.faces)
     mulib.mesh_object('CruiseMissile', b.bm, mat, model)
     # The boosters: top left, top right, bottom (under the duct), each its own transform BDArmory can drop.
     yb = -2.85
     for k, (th, dist, cz) in enumerate(((math.radians(30), R + B_R + 0.06, 0), (math.radians(150), R + B_R + 0.06, 0),
-                                        (math.radians(270), DUCT_R + B_R + 0.06, DUCT_Z))):
+                                        (math.radians(270), 0.49, 0))):          # (bottom: below the intake)
         centre = Vector((dist * math.cos(th), yb, cz + dist * math.sin(th)))
         holder = empty('boosterTransform', model, centre)
-        bb = booster_mesh(Vector((0, 0, cz)) - Vector((centre.x, 0, centre.z)))
+        bb = booster_mesh(Vector((0, 0, cz)) - Vector((centre.x, 0, centre.z)), dist - R)     # (struts reach the body)
         tris += sum(len(f.verts) - 2 for f in bb.bm.faces)
         mulib.mesh_object('booster', bb.bm, mat, holder)
         empty('boostExhaust', holder, (0, -1.25, 0), (math.radians(90), 0, 0))
     # The ramjet's exhaust point (BDArmory's cruise plume), turned as on BDArmory's own missiles.
-    empty('exhaustTransform', model, (0, Y_NOZZLE + 0.05, DUCT_Z), (math.radians(90), 0, 0))
+    empty('exhaustTransform', model, (0, Y_TAIL + 0.05, 0), (math.radians(90), 0, 0))
     collider(model)
     print(f'Cruise missile: {tris} triangles.')
     mulib.export(model, os.path.join(out, 'model.mu'))
@@ -349,6 +367,7 @@ def main():
             ('cruise-reference.png', (-5.0, 6.5, 3.2), g(0), (0, 0, 0)),
             ('cruise-side.png', (10.5, 0.5, 1.2), g(0), (0, 0, 0)),
             ('cruise-rear.png', (2.2, -7.5, -0.8), g(4), (0, -3.2, -0.3)),
+            ('cruise-intake.png', (1.4, 1.6, -1.2), g(0), (0, -0.8, -0.2)),
         ])
 
 

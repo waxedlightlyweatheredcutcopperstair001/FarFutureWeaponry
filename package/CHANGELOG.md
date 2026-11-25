@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.1
+
+- **Long Range Nuclear Cruise Missile** model reshaped after the real SLAM: the ramjet is the rear of the fuselage,
+  with its glowing nozzle on the centreline, and the forebody tapers in one long line to the needle nose. The intake is
+  a divertless chin scoop that curves up into the belly (no more separate duct, and no more clipping).
+
 ## 0.14.0
 
 - **Long Range Nuclear Cruise Missile**: its own model, replacing the borrowed placeholder. After Project Pluto's
