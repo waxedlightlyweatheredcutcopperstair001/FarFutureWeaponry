@@ -78,9 +78,6 @@ MANIFEST = [
     ('BDA', 'Parts/mk82Bomb/texture.png', 'Parts/GravityBomb/texture.png', VIOLET),
     ('BDA', 'Parts/mk82Bomb/model.mu', 'Parts/TachyonBomb/model.mu', None),
     ('BDA', 'Parts/mk82Bomb/texture.png', 'Parts/TachyonBomb/texture.png', GREEN),
-    # Mushroom bomb: NKDR's Tsar Bomba (round and fat, like the reference).
-    ('NKDR', 'parts/Tsar Bomba/model.mu', 'Parts/MushroomBomb/model.mu', None),
-    ('NKDR', 'parts/Tsar Bomba/Tsar Bomba.png', 'Parts/MushroomBomb/Tsar Bomba.png', PERIWINKLE),
     # Tachyon-be-gone: BDArmory's ECM jammer pod.
     ('BDA', 'Parts/ecmJammer/model.mu', 'Parts/TachyonShield/model.mu', None),
     ('BDA', 'Parts/ecmJammer/tex_ecmj131.png', 'Parts/TachyonShield/tex_ecmj131.png', GREEN),

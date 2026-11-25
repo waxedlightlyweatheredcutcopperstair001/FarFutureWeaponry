@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.12.2
+# Far Future Weaponry 0.13.0
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -91,5 +91,5 @@ Without Far Future Technologies (or the Community Resource Pack), this mod defin
 
 ## Licence
 
-Code: MIT. Configs and assets: CC BY-SA 4.0. The Warp Bomb's, Kraken Missile's and Antimatter Bomb's models are the mod's own; the other, placeholder models come from BDArmory (CC BY-SA 2.0), BDArmory
+Code: MIT. Configs and assets: CC BY-SA 4.0. The Warp Bomb's, Kraken Missile's, Antimatter Bomb's and Mushroom Bomb's models are the mod's own; the other, placeholder models come from BDArmory (CC BY-SA 2.0), BDArmory
 Extended (CC BY-SA 4.0) and North Kerbin Dynamics Renewed (CC BY-SA 4.0); see `LICENSE` and `Licences/`.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.0
+
+- **Mushroom Bomb**: its own model, replacing the borrowed placeholder: the cartoon periwinkle bomb (after Fat Man) at
+  two-thirds Fat Man scale, 2.2 m long and 1 m across. A fat egg with a rounded nose split off by a dark seam, a small
+  knob at the tip, and four tall purple fins, with a light touch of KSP detail: bolt rings at the seam, faint panel
+  lines, a hatch on each side. **Craft already carrying a Mushroom Bomb need it re-attached** (its size and attach
+  point changed).
+
 ## 0.12.2
 
 - **Antimatter Bomb**: the foil is a brighter gold and much shinier, with crinkles that catch the light; the gaps in
