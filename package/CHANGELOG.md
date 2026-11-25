@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.3
+
+- **Long Range Nuclear Cruise Missile** actually flies: it was far too weak for its weight. Its boost, cruise thrust,
+  lift and steering are now in line with BDArmory's own AGM-86 cruise missile for a missile its size (130 kN boost for
+  3.5 s, 22 kN cruise, twice the lift area, stronger steering), so it climbs off the ground and holds altitude once
+  the boosters drop. It used to fall back to the ground and go off on impact. The boosters only pitch it up for the
+  first 300 m now; BDArmory's guidance does the rest.
+- **Missile trails** (every FFW missile) come from the engine at the tail, not the middle of the missile, so they no
+  longer look wrong when it turns.
+
 ## 0.14.2
 
 - **Long Range Nuclear Cruise Missile** can be launched from the ground: during the boost, below 1.5 km above the

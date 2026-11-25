@@ -120,6 +120,7 @@ namespace FarFutureWeaponry
         [KSPField] public float spacing = 5;
         [KSPField] public float flicker = 0;
         [KSPField] public float crackle = 0;
+        [KSPField] public string trailTransform = "exhaustTransform";   // where the trail comes from (the engine), else the part's centre
 
         PartModule missile;
         RibbonTrail trail;
@@ -144,7 +145,8 @@ namespace FarFutureWeaponry
         void Update()
         {
             if (hidden || trail != null || missile == null || !Bda.MissileFired(missile)) return;
-            trail = RibbonTrail.Create(part.transform, Rgba.Parse(color, new Rgba(1, 1, 1, 1)).ToColor(), width, fade, spacing, flicker, crackle);
+            Transform from = string.IsNullOrEmpty(trailTransform) ? null : part.FindModelTransform(trailTransform);
+            trail = RibbonTrail.Create(from != null ? from : part.transform, Rgba.Parse(color, new Rgba(1, 1, 1, 1)).ToColor(), width, fade, spacing, flicker, crackle);
         }
 
         /// <summary>End the current trail where it is and start a new one (the phase-shift missile's jump: no streak across it).</summary>
