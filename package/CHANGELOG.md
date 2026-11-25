@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.5
+
+- **Long Range Nuclear Cruise Missile**, closer to the real SLAM (Mach 3 at treetop height, range effectively
+  unlimited):
+  - Cruises at 850 m/s (about Mach 2.5) instead of 300, with the ramjet's thrust raised to match (140 kN).
+  - Range about 1,000 km (20 minutes of cruise); the weapon manager will fire it at targets up to 1,000 km away.
+  - Keeps its tall fin up in cruise instead of sometimes flying upside down after a big turn.
+  - **Craft built before this keep a cruise speed of 300 m/s** (BDArmory saves it with the craft): set "Cruise speed"
+    to 850 in the missile's part window in the editor, or attach it again.
+  - With Deadly Reentry, low-level Mach 2.5 runs hot: if it overheats, lower its cruise speed or raise its cruise
+    altitude in the editor.
+
 ## 0.14.4
 
 - **Long Range Nuclear Cruise Missile**:

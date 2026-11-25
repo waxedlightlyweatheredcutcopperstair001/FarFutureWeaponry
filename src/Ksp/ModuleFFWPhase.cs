@@ -114,6 +114,11 @@ namespace FarFutureWeaponry
         // missile pointing away from its target, or without one, blow itself up 1.5 s later, is skipped for it.
         [KSPField] public bool neverMiss = true;
 
+        // Roll hold: BDArmory steers its missiles in pitch and yaw only, so a big turn can leave it flying upside down.
+        // In cruise (after the boost), it's rolled back towards fin-up, at up to rollRate degrees a second.
+        [KSPField] public bool rollHold = false;
+        [KSPField] public float rollRate = 60;
+
         PartModule missile;
         System.Reflection.FieldInfo cruiseField;
         float baseCruise, dropTime, boostTime, firedAt = -1;
@@ -161,6 +166,22 @@ namespace FarFutureWeaponry
             cruiseField?.SetValue(missile, baseCruise * k);
             status = k <= 0 ? "no air: flamed out" : $"{k * 100:0}% thrust";
             ClimbOut();
+            RollHold();
+        }
+
+        void RollHold()
+        {
+            if (!rollHold || part.rb == null || firedAt < 0) return;
+            if (Time.time - firedAt < dropTime + boostTime) return;
+            Vector3 fwd = part.transform.forward;
+            Vector3 up = (vessel.CoM - vessel.mainBody.position).normalized;
+            if (Mathf.Abs(Vector3.Dot(fwd, up)) > 0.95f) return;           // (pointing nearly straight up or down: no "up" to roll to)
+            Vector3 want = Vector3.ProjectOnPlane(up, fwd).normalized;     // where the fin should point
+            Vector3 have = Vector3.ProjectOnPlane(part.transform.up, fwd).normalized;
+            float error = Vector3.SignedAngle(have, want, fwd);             // (degrees, about the nose)
+            float rate = Mathf.Clamp(error * 2, -rollRate, rollRate) * Mathf.Deg2Rad;
+            Vector3 w = part.rb.angularVelocity;
+            part.rb.angularVelocity = w - fwd * Vector3.Dot(w, fwd) + fwd * rate;   // (only the roll part changes)
         }
 
         bool climbing;      // (launched low: it keeps its climb for the rest of the boost)

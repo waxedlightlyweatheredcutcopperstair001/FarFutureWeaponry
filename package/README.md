@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.14.4
+# Far Future Weaponry 0.14.5
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -37,7 +37,7 @@ FFW's own trackers go for your KSP target (right-click a craft, Set as Target), 
 
 | Missile | Tracking | What it does |
 |---|---|---|
-| **Long Range Nuclear Cruise Missile** | GPS | Flies low to a GPS target up to 100 km away on a nuclear ramjet (works only in air), then 1 megaton. Launched by three boosters that fall away; its ramjet nozzle glows red-hot and leaves a faint glowing trail. |
+| **Long Range Nuclear Cruise Missile** | GPS | Flies low at about Mach 2.5 (850 m/s) to a GPS target up to 1,000 km away on a nuclear ramjet (works only in air), then 1 megaton. Launched by three boosters that fall away; its ramjet nozzle glows red-hot and leaves a faint glowing trail. |
 | **Quantum Phase-Shift Missile** | Optical (20 km; fooled by cloaks) | 100 m out it vanishes in a flash of bent, colour-torn space; 0.5 s later it reappears inside the target's hull and goes off there. |
 | **Kessler Swarm Pod** | Radar (lock the target first) | 50 m out (or at its closest pass) it splits into 500 hypervelocity darts aimed where the target will be; each goes through up to three parts and shreds solar panels, radiators, wings and engines. |
 | **Telemetry Leech Missile** | CommNet (craft with a CommNet link) | An explosion, then 30 s without antennas and 2000 ElectricCharge drained. |
