@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.2
+
+- **Long Range Nuclear Cruise Missile** can be launched from the ground: during the boost, below 1.5 km above the
+  ground, the boosters pitch it up into a 35 degree climb (BDArmory steers it with its fins, which needs airspeed it
+  doesn't have on the launcher, so it used to plough along the ground). It also drops off the rail for only 0.3 s
+  before the boosters light, not a full second.
+
 ## 0.14.1
 
 - **Long Range Nuclear Cruise Missile** model reshaped after the real SLAM: the ramjet is the rear of the fuselage,

@@ -101,9 +101,16 @@ namespace FarFutureWeaponry
         [KSPField] public float fullDensity = 0.6f;    // kg/m³ for full thrust
         [KSPField] public float minDensity = 0.02f;    // below this, no thrust
 
+        // Climb-out: the boosters pitch it up off the launcher (BDArmory steers it by its fins, which needs airspeed:
+        // launched level from the ground, it would plough along it). During the boost, below climbBelow metres above the
+        // ground, it's turned up to climbAngle degrees along its heading, at up to climbRate degrees a second.
+        [KSPField] public float climbAngle = 35;
+        [KSPField] public float climbBelow = 1500;
+        [KSPField] public float climbRate = 60;
+
         PartModule missile;
         System.Reflection.FieldInfo thrustField, cruiseField;
-        float baseThrust, baseCruise;
+        float baseThrust, baseCruise, dropTime, boostTime, firedAt = -1;
 
         [KSPField(guiActive = true, guiName = "Ramjet")] public string status = "";
 
@@ -117,6 +124,8 @@ namespace FarFutureWeaponry
             cruiseField = missile.GetType().GetField("cruiseThrust");
             if (thrustField != null) baseThrust = (float)thrustField.GetValue(missile);
             if (cruiseField != null) baseCruise = (float)cruiseField.GetValue(missile);
+            dropTime = missile.GetType().GetField("dropTime")?.GetValue(missile) is float d ? d : 0;
+            boostTime = missile.GetType().GetField("boostTime")?.GetValue(missile) is float bt ? bt : 0;
         }
 
         public override string GetInfo() => "<b>Nuclear ramjet:</b> needs air. Full thrust low down, weaker as the air thins, none above the atmosphere.";
@@ -129,6 +138,29 @@ namespace FarFutureWeaponry
             thrustField?.SetValue(missile, baseThrust * k);
             cruiseField?.SetValue(missile, baseCruise * k);
             status = k <= 0 ? "no air: flamed out" : $"{k * 100:0}% thrust";
+            ClimbOut();
+        }
+
+        void ClimbOut()
+        {
+            if (climbAngle <= 0 || part.rb == null) return;
+            if (firedAt < 0) { if (Bda.MissileFired(missile)) firedAt = Time.time; else return; }
+            float t = Time.time - firedAt;
+            if (t < dropTime || t > dropTime + boostTime) return;
+            if (vessel.heightFromTerrain > climbBelow && vessel.heightFromTerrain >= 0) return;
+            Vector3 up = (vessel.CoM - vessel.mainBody.position).normalized;
+            Vector3 fwd = part.transform.forward;
+            Vector3 heading = Vector3.ProjectOnPlane(fwd, up);
+            if (heading.sqrMagnitude < 1e-4f) heading = Vector3.ProjectOnPlane(part.transform.up, up);
+            heading.Normalize();
+            float a = climbAngle * Mathf.Deg2Rad;
+            Vector3 want = heading * Mathf.Cos(a) + up * Mathf.Sin(a);                                  // (heading, tipped up)
+            if (Vector3.Dot(fwd, up) > Mathf.Sin(climbAngle * Mathf.Deg2Rad)) return;                  // (climbing steeply enough already)
+            Vector3 axis = Vector3.Cross(fwd, want);
+            float angle = Vector3.Angle(fwd, want);
+            if (axis.sqrMagnitude < 1e-8f || angle < 0.5f) return;
+            float rate = Mathf.Min(climbRate, angle * 3) * Mathf.Deg2Rad;
+            part.rb.angularVelocity = axis.normalized * rate;
         }
     }
 }
