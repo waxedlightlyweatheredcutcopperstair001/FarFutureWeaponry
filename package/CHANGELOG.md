@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.1
+
+- **Mushroom Bomb**: a darker blue-grey (it was too purple), with muted slate-purple fins; the fins now sit flush on the
+  tail all the way along instead of floating clear of it in the middle.
+
 ## 0.13.0
 
 - **Mushroom Bomb**: its own model, replacing the borrowed placeholder: the cartoon periwinkle bomb (after Fat Man) at

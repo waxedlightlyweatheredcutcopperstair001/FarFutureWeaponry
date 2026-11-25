@@ -26,8 +26,8 @@ L = Y_NOSE - Y_TAIL
 SEG = 48
 SEED = 2
 SWATCH = {'fin': 0, 'body': 1, 'metal': 2, 'dark': 3}
-PERI = np.array([0.6, 0.64, 0.97])         # the cartoon's periwinkle
-PURPLE = np.array([0.46, 0.34, 0.84])      # its fins
+PERI = np.array([0.42, 0.44, 0.56])        # a dark blue-grey (the show's lighting makes it look more purple)
+PURPLE = np.array([0.33, 0.3, 0.47])       # its fins: a muted, darker slate purple
 
 
 def body_uv(y, th):
@@ -60,7 +60,7 @@ def texture(out):
     def row(th): return int(round((0.01 + th / (2 * math.pi) * 0.47) * N))
     # The seam: a dark line, with a ring of bolts either side of it.
     a, b = col(Y_SEAM - 0.004), col(Y_SEAM + 0.016)
-    body[:, a:b] = (0.12, 0.13, 0.3); bh[:, a:b] = -3
+    body[:, a:b] = (0.1, 0.1, 0.16); bh[:, a:b] = -3
     yy, xx = np.mgrid[0:512, 0:N]
     for yb in (Y_SEAM - 0.03, Y_SEAM + 0.045):
         cx = col(yb)
@@ -81,7 +81,7 @@ def texture(out):
     body *= (0.96 + 0.08 * mulib.value_noise(512, N, 16, SEED))[..., None]
     # Swatches.
     w = N // 4
-    for name, c, g in (('fin', PURPLE, 0.45), ('body', PERI, 0.5), ('metal', np.array([0.35, 0.36, 0.4]), 0.6), ('dark', np.array([0.12, 0.13, 0.3]), 0.3)):
+    for name, c, g in (('fin', PURPLE, 0.45), ('body', PERI, 0.5), ('metal', np.array([0.35, 0.36, 0.4]), 0.6), ('dark', np.array([0.1, 0.1, 0.16]), 0.3)):
         k = SWATCH[name]; alb[512:, k * w:(k + 1) * w] = c; gloss[512:, k * w:(k + 1) * w] = g
     main = mulib.save_png('MushroomBomb', np.clip(alb, 0, 1), out, alpha=gloss)
     nrm = mulib.save_png('MushroomBomb_NRM', mulib.normal_map(hgt, 0.3), out, data=True)
@@ -181,18 +181,29 @@ def knob(b, centre):
 
 
 def fin(b, th):
-    """A tall swept fin standing out from the tail cone and rear, at angle th."""
+    """
+    A tall swept fin standing out from the tail cone and rear, at angle th. Its root follows the body's curve (sunk a
+    little into it): a straight root would float clear of the tail where the body narrows.
+    """
     out = Vector((math.cos(th), 0, math.sin(th))); side = Vector((-math.sin(th), 0, math.cos(th)))
     t = 0.012
-    pts = [(Y_TAIL + 0.01, radius_at(Y_TAIL + 0.01) - 0.01), (-0.62, radius_at(-0.62) - 0.02), (-0.92, 0.66), (Y_TAIL - 0.04, 0.66)]
-    def Q(y, r, s): return Vector((0, y, 0)) + out * r + side * (s * t * (1 - 0.4 * (r - 0.2) / 0.46))
+    root = [(y, radius_at(y) - 0.012) for y in lin(Y_TAIL + 0.01, -0.62, 12)]
+    pts = root + [(-0.92, 0.66), (Y_TAIL - 0.04, 0.66)]
+    n = len(pts)
+    def Q(y, r, s): return Vector((0, y, 0)) + out * r + side * (s * t * (1 - 0.4 * max(0, r - 0.2) / 0.46))
+    sides = []
     for s in (1, -1):
-        b.face([b.v(Q(y, r, s)) for y, r in pts], [sw_uv('fin', (y - Y_TAIL) * 1.6, (r - 0.15) * 2) for y, r in pts], False, side * s)
-    mid = sum((Q(y, r, 0) for y, r in pts), Vector()) / 4
-    for i in range(4):
-        (ya, ra), (yb, rb) = pts[i], pts[(i + 1) % 4]
+        sides.append(b.face([b.v(Q(y, r, s)) for y, r in pts], [sw_uv('fin', (y - Y_TAIL) * 1.6, (r - 0.15) * 2) for y, r in pts], False, side * s))
+    # (the outline isn't convex along the root: cut the sides into triangles, which also keeps tangents exportable)
+    for f in bmesh.ops.triangulate(b.bm, faces=sides)['faces']:
+        f.normal_update()
+    mid = sum((Q(y, r, 0) for y, r in pts), Vector()) / n
+    for i in range(n):
+        (ya, ra), (yb, rb) = pts[i], pts[(i + 1) % n]
         q = [b.v(Q(ya, ra, 1)), b.v(Q(yb, rb, 1)), b.v(Q(yb, rb, -1)), b.v(Q(ya, ra, -1))]
-        b.face(q, [sw_uv('fin')] * 4, False, (Q(ya, ra, 0) + Q(yb, rb, 0)) / 2 - mid)
+        edge = (Q(ya, ra, 0) + Q(yb, rb, 0)) / 2
+        # (along the root the edge faces in, towards the body; elsewhere away from the fin's middle)
+        b.face(q, [sw_uv('fin')] * 4, False, -out if i < len(root) - 1 else edge - mid)
 
 
 def lug(b, y):
