@@ -82,10 +82,6 @@ MANIFEST = [
     ('BDA', 'Parts/ecmJammer/model.mu', 'Parts/TachyonShield/model.mu', None),
     ('BDA', 'Parts/ecmJammer/tex_ecmj131.png', 'Parts/TachyonShield/tex_ecmj131.png', GREEN),
     # Phase 3 missiles.
-    ('NKDR', 'parts/Tomohawk Conventional/model.mu', 'Parts/CruiseMissile/model.mu', None),
-    ('NKDR', 'parts/Tomohawk Conventional/Tomahawk.png', 'Parts/CruiseMissile/Tomahawk.png', OLIVE),
-    ('NKDR', 'parts/Tomohawk Conventional/smokepuff1.png', 'Parts/CruiseMissile/smokepuff1.png', None),
-    ('NKDR', 'parts/Tomohawk Conventional/srbsmoke.png', 'Parts/CruiseMissile/srbsmoke.png', None),
     ('BDA', 'Parts/aim-120/model.mu', 'Parts/PhaseMissile/model.mu', None),
     ('BDA', 'Parts/aim-120/texture.png', 'Parts/PhaseMissile/texture.png', CYAN),
     ('BDA', 'Parts/harm/model.mu', 'Parts/KesslerPod/model.mu', None),

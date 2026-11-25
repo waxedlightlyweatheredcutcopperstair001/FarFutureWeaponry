@@ -1,4 +1,4 @@
-# Far Future Weaponry 0.13.1
+# Far Future Weaponry 0.14.0
 
 Experimental weapons for Kerbal Space Program 1.12, built on BDArmory. Works with **BDArmory Lite** and **BDArmory**.
 
@@ -37,7 +37,7 @@ FFW's own trackers go for your KSP target (right-click a craft, Set as Target), 
 
 | Missile | Tracking | What it does |
 |---|---|---|
-| **Long Range Nuclear Cruise Missile** | GPS | Flies low to a GPS target up to 100 km away on a nuclear ramjet (works only in air), then 1 megaton. Leaves a faint glowing trail. |
+| **Long Range Nuclear Cruise Missile** | GPS | Flies low to a GPS target up to 100 km away on a nuclear ramjet (works only in air), then 1 megaton. Launched by three boosters that fall away; its ramjet nozzle glows red-hot and leaves a faint glowing trail. |
 | **Quantum Phase-Shift Missile** | Optical (20 km; fooled by cloaks) | 100 m out it vanishes in a flash of bent, colour-torn space; 0.5 s later it reappears inside the target's hull and goes off there. |
 | **Kessler Swarm Pod** | Radar (lock the target first) | 50 m out (or at its closest pass) it splits into 500 hypervelocity darts aimed where the target will be; each goes through up to three parts and shreds solar panels, radiators, wings and engines. |
 | **Telemetry Leech Missile** | CommNet (craft with a CommNet link) | An explosion, then 30 s without antennas and 2000 ElectricCharge drained. |
@@ -91,5 +91,5 @@ Without Far Future Technologies (or the Community Resource Pack), this mod defin
 
 ## Licence
 
-Code: MIT. Configs and assets: CC BY-SA 4.0. The Warp Bomb's, Kraken Missile's, Antimatter Bomb's and Mushroom Bomb's models are the mod's own; the other, placeholder models come from BDArmory (CC BY-SA 2.0), BDArmory
+Code: MIT. Configs and assets: CC BY-SA 4.0. The Warp Bomb's, Kraken Missile's, Antimatter Bomb's, Mushroom Bomb's and Nuclear Cruise Missile's models are the mod's own; the other, placeholder models come from BDArmory (CC BY-SA 2.0), BDArmory
 Extended (CC BY-SA 4.0) and North Kerbin Dynamics Renewed (CC BY-SA 4.0); see `LICENSE` and `Licences/`.

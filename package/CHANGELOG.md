@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.0
+
+- **Long Range Nuclear Cruise Missile**: its own model, replacing the borrowed placeholder. After Project Pluto's
+  SLAM, 8 m long: a silver fuselage with a long black nose, canards and a tall fin, the ramjet duct underneath with a
+  spiked intake, and Bobrigh Weaponry markings. Three solid boosters (top left, top right, bottom) fire for the launch,
+  then fall away; once the ramjet takes over, its nozzle glows red-hot. A little heavier and more powerful to match.
+  **Craft already carrying one need it re-attached** (its size and attach point changed).
+
 ## 0.13.1
 
 - **Mushroom Bomb**: a darker blue-grey (it was too purple), with muted slate-purple fins; the fins now sit flush on the
